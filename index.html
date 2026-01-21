@@ -148,6 +148,7 @@
       if (key === 'checklist') {
         summary.hidden = false;
         renderChecklistProgress();
+        ensureResetButton();
       } else {
         summary.hidden = true;
         summary.innerHTML = '';
@@ -213,8 +214,45 @@
           </div>`
         );
       });
-      summary.innerHTML = `<h2 class="summary-title">Progreso por secciones</h2>${items.join('')}`;
+      // Calcular total global
+      const global = Array.from(sections.values()).reduce((a,b)=>({checked:a.checked+b.checked,total:a.total+b.total}),{checked:0,total:0});
+      const gpct = global.total ? Math.round((global.checked/global.total)*100) : 0;
+      const globalBar = `<div style="margin-bottom:16px;padding:12px;border:1px solid #1e40af;border-radius:8px;background:#0c1e3d;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:#e5e7eb;font-weight:600;">✅ Progreso Global Total</span>
+          <span style="color:#3b82f6;font-weight:bold;">${global.checked}/${global.total} (${gpct}%)</span>
+        </div>
+        <div class="progress" style="height:14px;border-color:#1e40af;"><div class="bar" style="width:${gpct}%;background:linear-gradient(90deg,#3b82f6,#60a5fa);"></div></div>
+      </div>`;
+      summary.innerHTML = `<h2 class="summary-title">Progreso del Checklist</h2>${globalBar}<div style="margin-top:12px;font-size:13px;color:#9ca3af;font-weight:600;margin-bottom:8px;">Por sección:</div>${items.join('')}`;
       annotateSectionHeadings(sections);
+    }
+
+    function ensureResetButton() {
+      const summary = document.getElementById('summary');
+      if (!summary) return;
+      if (summary.querySelector('#btn-reset-checklist')) return;
+      const wrap = document.createElement('div');
+      wrap.style.display = 'flex';
+      wrap.style.justifyContent = 'flex-end';
+      wrap.style.marginTop = '12px';
+      const btn = document.createElement('button');
+      btn.id = 'btn-reset-checklist';
+      btn.textContent = 'Reset progreso del checklist';
+      btn.style.border = '1px solid #374151';
+      btn.style.background = '#111827';
+      btn.style.color = '#e5e7eb';
+      btn.style.padding = '6px 10px';
+      btn.style.borderRadius = '8px';
+      btn.style.cursor = 'pointer';
+      btn.addEventListener('click', () => {
+        // Limpiar solo claves de checklist
+        const keys = Object.keys(localStorage);
+        keys.forEach(k => { if (k.startsWith('checklist::cb::')) localStorage.removeItem(k); });
+        renderSection('checklist');
+      });
+      wrap.appendChild(btn);
+      summary.appendChild(wrap);
     }
 
     function annotateSectionHeadings(sectionsMap) {
