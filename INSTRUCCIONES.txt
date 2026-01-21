@@ -1,0 +1,332 @@
+📁 ESTRUCTURA DEL PROYECTO - QUANTUM-HIJACK v2.0
+═══════════════════════════════════════════════════════════════
+
+📍 DIRECTORIO RAÍZ
+───────────────────────────────────────────────────────────────
+
+📄 quantum_hijack_full.py
+   └─ Backend Flask principal
+   ├─ 500+ líneas de código
+   ├─ Controla todos los módulos
+   ├─ APIs REST para cada función
+   ├─ Ejecuta: setup, hostapd, dnsmasq, interceptor, dashboard
+   └─ Puerto: 8080
+
+📄 interceptor.py
+   └─ Script capturador de credenciales
+   ├─ Usa Scapy para sniffing
+   ├─ Monitorea puertos: 21, 22, 80, 443, 3306, 5432, 27017
+   ├─ Detecta patrones de credenciales (user, pass, email)
+   ├─ Guarda en: logs/captured_credentials.json
+   └─ Ejecución: sudo python3 interceptor.py
+
+📄 dashboard_terminal.py
+   └─ Mostrador en vivo en terminal
+   ├─ UI en terminal con emojis
+   ├─ Actualización cada 2 segundos
+   ├─ Muestra: clientes, credenciales, estado
+   └─ Interactivo (Q=Quit, R=Refresh, L=Logs, C=Clear)
+
+📄 hostapd_1.conf
+   └─ Configuración del Access Point falso
+   ├─ Interface: wlan0mon
+   ├─ SSID: CafeWiFi_Quantum
+   ├─ Password: 12345678
+   ├─ Modo: WPA2 (seguridad básica)
+   └─ Canal: 6 (configurable)
+
+📄 dnsmasq.conf
+   └─ Configuración de DHCP + DNS spoofing
+   ├─ Interface: wlan0mon
+   ├─ Rango DHCP: 192.168.1.2-100
+   ├─ Gateway: 192.168.1.1
+   ├─ DNS: redirige todo a 192.168.1.1
+   └─ Logs en: /var/log/dnsmasq.log
+
+📄 setup.sh
+   └─ Script de preparación (opcional)
+   ├─ Pone interfaz en modo monitor
+   ├─ Mata procesos conflictivos
+   ├─ Configura IP: 192.168.1.1
+   └─ Crea directorios (logs, payloads, capture)
+
+📄 README.md
+   └─ Guía rápida del proyecto
+   ├─ Descripción general
+   ├─ Instrucciones de instalación
+   ├─ Pasos de uso
+   └─ Troubleshooting básico
+
+📄 GUIA_FINAL.md
+   └─ Documentación completa (25+ páginas)
+   ├─ Flujo detallado de ejecución
+   ├─ Casos de uso reales
+   ├─ Customización de parámetros
+   ├─ Troubleshooting avanzado
+   ├─ Ejemplos de datos capturados
+   └─ Checklist pre-operación
+
+📄 QUICK_START.sh
+   └─ Script de verificación rápida
+   ├─ Verifica permisos root
+   ├─ Verifica Python y Kali
+   ├─ Instala dependencias
+   ├─ Verifica archivos
+   ├─ Detecta interfaz WiFi
+   └─ Ejecución: sudo bash QUICK_START.sh
+
+📄 requirements.txt
+   └─ Dependencias Python (si lo necesitas)
+   ├─ Flask
+   ├─ Scapy
+   └─ flask-cors
+
+📄 INSTRUCCIONES.txt (este archivo)
+   └─ Índice de archivos y descripción
+
+───────────────────────────────────────────────────────────────
+
+📁 DIRECTORIO: templates/
+   └─ Archivos HTML/CSS/JS del dashboard
+
+   📄 index_hijack.html
+      └─ Dashboard web completo
+      ├─ Interfaz hacker-themed
+      ├─ Mostrador de módulos (Setup, Hostapd, Dnsmasq, Interceptor, Dashboard)
+      ├─ Tabla de clientes conectados
+      ├─ Tabla de credenciales capturadas
+      ├─ Logs en vivo
+      ├─ Botones de control
+      └─ Auto-actualización cada 2 segundos
+
+───────────────────────────────────────────────────────────────
+
+📁 DIRECTORIO: logs/
+   └─ Generado automáticamente
+   └─ Almacena datos capturados
+
+   📄 captured_credentials.json
+      └─ Credenciales capturadas
+      ├─ Timestamp
+      ├─ Protocolo (HTTPS, HTTP, FTP, etc)
+      ├─ Usuario/Email y contraseña
+      └─ IP origen y destino
+
+   📄 operation_logs.json
+      └─ Log de operaciones
+      ├─ Todas las acciones del sistema
+      ├─ Timestamps
+      └─ Niveles (INFO, SUCCESS, ERROR, PROCESS)
+
+───────────────────────────────────────────────────────────────
+
+📁 DIRECTORIO: payloads/
+   └─ Generado automáticamente
+   └─ Para futuros payloads (no usado aún)
+
+───────────────────────────────────────────────────────────────
+
+📁 DIRECTORIO: capture/
+   └─ Generado automáticamente
+   └─ Para captura de paquetes (no usado aún)
+
+═══════════════════════════════════════════════════════════════
+
+🚀 FLUJO DE EJECUCIÓN RECOMENDADO
+
+1️⃣  PREPARACIÓN:
+    └─ Ejecuta: sudo bash QUICK_START.sh
+    └─ Verifica que todo esté listo
+
+2️⃣  INICIAR SERVIDOR:
+    └─ Ejecuta: sudo python3 quantum_hijack_full.py
+    └─ Ver: http://localhost:8080
+
+3️⃣  INICIAR MÓDULOS:
+    └─ Presiona: 🔥 INICIAR QUANTUM-HIJACK COMPLETO
+    └─ O inicia cada uno manualmente
+
+4️⃣  CONECTAR TELÉFONO:
+    └─ WiFi: CafeWiFi_Quantum
+    └─ Password: 12345678
+
+5️⃣  CAPTURAR DATOS:
+    └─ Usuario navega web
+    └─ Intenta login en sitios
+    └─ Credenciales capturadas en vivo
+
+6️⃣  ANÁLISIS:
+    └─ Ver clientes en el dashboard
+    └─ Ver credenciales capturadas
+    └─ Exportar datos en JSON
+
+7️⃣  FINALIZAR:
+    └─ Presiona: ⛔ DETENER TODO
+    └─ O Ctrl+C en la terminal
+
+═══════════════════════════════════════════════════════════════
+
+🔍 ARCHIVOS GENERADOS AUTOMÁTICAMENTE
+
+Durante la ejecución se crean:
+
+📄 logs/captured_credentials.json
+   └─ Actualizado en tiempo real
+   └─ Visible en Dashboard: 🔥 Credenciales Capturadas
+
+📄 logs/operation_logs.json
+   └─ Actualizado en tiempo real
+   └─ Visible en Dashboard: 📋 Operaciones en Vivo
+
+📄 export_YYYYMMDD_HHMMSS.json
+   └─ Creado cuando presionas 💾 Exportar
+   └─ Contiene estado completo del sistema
+
+═══════════════════════════════════════════════════════════════
+
+⚙️  CONFIGURACIÓN POR ARCHIVO
+
+┌─ quantum_hijack_full.py
+│  ├─ state['ssid'] = 'CafeWiFi_Quantum'
+│  ├─ state['password'] = '12345678'
+│  ├─ state['gateway_ip'] = '192.168.1.1'
+│  └─ app.run(host='0.0.0.0', port=8080)
+│
+├─ hostapd_1.conf
+│  ├─ interface=wlan0mon
+│  ├─ ssid=CafeWiFi_Quantum
+│  ├─ wpa_passphrase=12345678
+│  └─ channel=6
+│
+└─ dnsmasq.conf
+   ├─ interface=wlan0mon
+   ├─ dhcp-range=192.168.1.2,192.168.1.100,12h
+   └─ address=/#/192.168.1.1
+
+═══════════════════════════════════════════════════════════════
+
+📊 DATOS CAPTURADOS
+
+Cada credencial capturada contiene:
+
+{
+  "timestamp": "14:24:10",
+  "protocol": "HTTPS",
+  "src_ip": "192.168.1.5",
+  "dst_ip": "142.250.80.46",
+  "port": 443,
+  "credentials": {
+    "username": "user@gmail.com",
+    "password": "secret123"
+  }
+}
+
+═══════════════════════════════════════════════════════════════
+
+🔐 PUERTOS MONITORADOS
+
+El interceptor captura en estos puertos:
+
+Port  Protocol  Use
+────────────────────────
+21    FTP       Servidores FTP
+22    SSH       Acceso remoto
+80    HTTP      Webs antiguas
+443   HTTPS     Gmail, Facebook, Instagram
+3306  MySQL     Bases de datos
+5432  PostgreSQL Bases de datos
+27017 MongoDB   NoSQL DB
+
+═══════════════════════════════════════════════════════════════
+
+✅ CHECKLIST PRE-EJECUCIÓN
+
+□ Estoy en Kali Linux
+□ Tengo permisos root (sudo)
+□ WiFi está conectada
+□ Los archivos principales existen:
+  □ quantum_hijack_full.py
+  □ hostapd_1.conf
+  □ dnsmasq.conf
+  □ interceptor.py
+  □ dashboard_terminal.py
+  □ templates/index_hijack.html
+□ Dependencias instaladas:
+  □ Flask
+  □ Scapy
+  □ hostapd
+  □ dnsmasq
+  □ airmon-ng
+□ Puerto 8080 disponible
+□ Terminal visible para logs
+
+═══════════════════════════════════════════════════════════════
+
+📞 AYUDA RÁPIDA
+
+¿Cómo cambiar SSID?
+  └─ Edita quantum_hijack_full.py línea ~45:
+     state['ssid'] = 'MiSSID'
+
+¿Cómo cambiar canal WiFi?
+  └─ Edita hostapd_1.conf línea ~7:
+     channel=11  (cambio de 6 a 11)
+
+¿Cómo cambiar gateway?
+  └─ Edita quantum_hijack_full.py línea ~46:
+     state['gateway_ip'] = '10.0.0.1'
+
+¿Cómo ver logs en vivo?
+  └─ Dashboard: 📋 Operaciones en Vivo
+  └─ O: tail -f logs/operation_logs.json
+
+¿Cómo exportar datos?
+  └─ Dashboard: 💾 Exportar JSON
+  └─ O: curl http://localhost:8080/api/export > datos.json
+
+═══════════════════════════════════════════════════════════════
+
+⚖️  LEGAL
+
+SOLO PARA:
+✓ Testing autorizado
+✓ Pentesting profesional
+✓ Educación
+✓ Redes propias
+
+NO PARA:
+✗ Actividades ilegales
+✗ Sin consentimiento
+✗ Privacidad de otros
+
+Los logs se guardan para auditoría.
+
+═══════════════════════════════════════════════════════════════
+
+🎓 PRÓXIMAS MEJORAS
+
+Posibles adiciones:
+- Web GUI mejorada
+- Soporte para múltiples APs
+- Almacenamiento en BD
+- Análisis avanzado de tráfico
+- Integración con Shodan
+- Reportes automáticos
+- Soporte para Burp Suite
+
+═══════════════════════════════════════════════════════════════
+
+¿PREGUNTAS?
+
+Consulta:
+1. GUIA_FINAL.md (documentación completa)
+2. README.md (instrucciones básicas)
+3. Logs en vivo en el dashboard
+4. Terminal con los mensajes del servidor
+
+═══════════════════════════════════════════════════════════════
+
+🔓 QUANTUM-HIJACK v2.0
+Herramienta de Hacking Ético - Emmanuel 2026
+
+Última actualización: 2026-01-21

@@ -1,0 +1,429 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║          🔓 QUANTUM-HIJACK v2.0 - ROGUE WIFI + INTERCEPTOR              ║
+║                                                                           ║
+║              Herramienta de Hacking Ético Completamente Integrada       ║
+║                                                                           ║
+║                            Emmanuel 2026                                 ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+🚀 INICIO RÁPIDO (3 PASOS)
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 1 - Preparar el sistema
+────────────────────────────────────────────────────────────────────────────
+$ sudo bash QUICK_START.sh
+
+Esto verificará que tengas:
+  ✓ Kali Linux
+  ✓ Permisos root
+  ✓ Python3 instalado
+  ✓ Dependencias (Flask, Scapy, hostapd, dnsmasq)
+  ✓ Interfaz WiFi detectada
+
+
+PASO 2 - Iniciar el servidor
+────────────────────────────────────────────────────────────────────────────
+$ sudo python3 quantum_hijack_full.py
+
+Verás:
+  🔓 QUANTUM-HIJACK v2.0 - ROGUE WIFI + INTERCEPTOR
+  
+  📡 CONFIGURACIÓN
+  ══════════════════════════════════════════════════════════
+    WiFi Interface: wlan0
+    Monitor Mode: wlan0mon
+    SSID: CafeWiFi_Quantum
+    Password: 12345678
+    Gateway: 192.168.1.1
+  
+  🌐 WEB DASHBOARD
+  ══════════════════════════════════════════════════════════
+    → http://localhost:8080
+
+
+PASO 3 - Abrir Dashboard Web
+────────────────────────────────────────────────────────────────────────────
+Abre en navegador:
+  http://localhost:8080
+
+Verás un panel con 5 módulos:
+  ☐ Setup        (Modo Monitor)
+  ☐ Hostapd      (WiFi Rojo)
+  ☐ Dnsmasq      (DHCP)
+  ☐ Interceptor  (Captura)
+  ☐ Dashboard    (Terminal)
+
+PRESIONA EL BOTÓN ROJO:
+  🔥 INICIAR QUANTUM-HIJACK COMPLETO
+
+¡TODO se inicia automáticamente!
+
+
+═══════════════════════════════════════════════════════════════════════════
+📊 QUÉ SUCEDE AUTOMÁTICAMENTE
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Setup Ejecutado
+  └─ Antena WiFi activada en modo monitor
+  └─ Interfaz: wlan0mon
+
+✓ Hostapd Iniciado
+  └─ WiFi Falso creado: "CafeWiFi_Quantum"
+  └─ Contraseña: 12345678
+  └─ Teléfonos pueden conectarse
+
+✓ Dnsmasq Iniciado
+  └─ DHCP automático (192.168.1.2-100)
+  └─ DNS spoofing activo
+  └─ Clientes obtienen IP automáticamente
+
+✓ Interceptor Iniciado
+  └─ Monitoreo de tráfico
+  └─ Captura de credenciales
+  └─ 7 protocolos: FTP, SSH, HTTP, HTTPS, MySQL, PostgreSQL, MongoDB
+
+✓ Dashboard Terminal
+  └─ Mostrador en vivo
+  └─ Estadísticas en tiempo real
+  └─ Actualización cada 2 segundos
+
+
+═══════════════════════════════════════════════════════════════════════════
+📱 CONECTAR UN TELÉFONO
+═══════════════════════════════════════════════════════════════════════════
+
+En un teléfono (Android/iPhone):
+
+1. Abre Configuración → WiFi
+2. Busca redes disponibles
+3. Selecciona: "CafeWiFi_Quantum"
+4. Contraseña: 12345678
+5. Conecta
+
+El teléfono automáticamente:
+  └─ Se conectará al AP falso
+  └─ Obtendrá IP: 192.168.1.X (dnsmasq)
+  └─ Aparecerá en el Dashboard
+  └─ Estará listo para captura
+
+
+═══════════════════════════════════════════════════════════════════════════
+🎮 CAPTURAR CREDENCIALES
+═══════════════════════════════════════════════════════════════════════════
+
+En el teléfono conectado:
+
+1. Abre navegador
+2. Ve a: google.com
+3. Intenta iniciar sesión con email/contraseña
+4. O navega a: facebook.com, instagram.com, etc.
+5. Intenta login con credenciales reales (SOLO EN TEST)
+
+En el Dashboard Web, inmediatamente verás:
+
+  🔥 CREDENCIALES CAPTURADAS
+  ┌─────────────────────────────────────┐
+  │ Hora       Protocolo  Usuario      │
+  │ 14:24:10   HTTPS      user@gmail   │
+  │ 14:25:30   HTTP       admin        │
+  │ 14:26:15   HTTPS      info@test    │
+  └─────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+📊 DASHBOARD WEB - SECCIONES
+═══════════════════════════════════════════════════════════════════════════
+
+HEADER:
+  SSID: CafeWiFi_Quantum
+  Gateway: 192.168.1.1
+  Clientes: 0 → 1 → 3 (en tiempo real)
+  Credenciales: 0 → 5 → 12 (en tiempo real)
+
+MÓDULOS:
+  ✓ Setup        [ACTIVO]
+  ✓ Hostapd      [ACTIVO]
+  ✓ Dnsmasq      [ACTIVO]
+  ✓ Interceptor  [ACTIVO]
+  ✓ Dashboard    [ACTIVO]
+  ⛔ Control     [DETENER TODO]
+
+TABLA: CLIENTES CONECTADOS
+  Muestra MACs, IPs, tiempo de conexión, señal
+
+TABLA: CREDENCIALES CAPTURADAS
+  Muestra: Hora, Protocolo, Usuario, Contraseña, Origen
+
+LOGS EN VIVO:
+  Todas las operaciones en tiempo real
+  Auto-scroll automático
+  Filtrado por tipo (SUCCESS, ERROR, PROCESS)
+
+
+═══════════════════════════════════════════════════════════════════════════
+💾 EXPORTAR DATOS
+═══════════════════════════════════════════════════════════════════════════
+
+Descarga automática:
+  El sistema descarga datos cada 10 minutos
+
+O manual en el dashboard:
+  Botón: 💾 EXPORTAR JSON
+  └─ Descarga: export_20260121_142445.json
+
+Contenido del archivo:
+  {
+    "timestamp": "2026-01-21T14:24:45",
+    "clients": [...],
+    "credentials": [...],
+    "logs": [...]
+  }
+
+
+═══════════════════════════════════════════════════════════════════════════
+🛑 DETENER TODO
+═══════════════════════════════════════════════════════════════════════════
+
+OPCIÓN 1 - Dashboard Web:
+  Botón: ⛔ DETENER TODO
+  └─ Para todos los módulos gracefully
+  └─ Limpia procesos
+  └─ Mata conexiones
+
+OPCIÓN 2 - Terminal:
+  Ctrl+C
+  └─ Detiene el servidor Flask
+  └─ Automáticamente limpia
+
+
+═══════════════════════════════════════════════════════════════════════════
+📚 DOCUMENTACIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+ARCHIVO                DESCRIPCIÓN
+─────────────────────────────────────────────────────────────────
+README.md              Guía rápida del proyecto
+GUIA_FINAL.md         Documentación COMPLETA (500+ líneas)
+INSTRUCCIONES.txt     Índice de archivos y estructura
+RESUMEN_FINAL.txt     Estado final del proyecto
+QUICK_START.sh        Script de verificación automática
+
+PARA ENTENDER EL PROYECTO:
+  1. Lee: README.md (2 minutos)
+  2. Lee: GUIA_FINAL.md (20 minutos)
+  3. Lee: INSTRUCCIONES.txt (5 minutos)
+
+
+═══════════════════════════════════════════════════════════════════════════
+📂 ESTRUCTURA DEL PROYECTO
+═══════════════════════════════════════════════════════════════════════════
+
+BACKEND (Controla todo):
+  quantum_hijack_full.py    → 580+ líneas - Flask + APIs
+
+CAPTURA:
+  interceptor.py            → 200+ líneas - Scapy sniffing
+  dashboard_terminal.py     → 200+ líneas - UI Terminal
+
+CONFIGURACIÓN:
+  hostapd_1.conf           → WiFi rogue config
+  dnsmasq.conf             → DHCP config
+
+FRONTEND:
+  templates/index_hijack.html  → Dashboard web (450 líneas)
+
+DATOS (Generados automáticamente):
+  logs/captured_credentials.json  → Credenciales capturadas
+  logs/operation_logs.json        → Historial de operaciones
+  export_*.json                   → Exportaciones
+
+
+═══════════════════════════════════════════════════════════════════════════
+✅ CHECKLIST PRE-EJECUCIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+Antes de ejecutar:
+
+□ Estoy en Kali Linux
+□ Tengo permisos root (sudo)
+□ WiFi está disponible
+□ He ejecutado: sudo bash QUICK_START.sh
+□ Veo "✓ TODAS LAS VERIFICACIONES PASARON"
+□ Tengo Firefox o Chrome disponible
+□ He leído al menos el README.md
+
+
+═══════════════════════════════════════════════════════════════════════════
+⚖️  RESPONSABILIDAD LEGAL
+═══════════════════════════════════════════════════════════════════════════
+
+SOLO PARA:
+  ✓ Testing autorizado
+  ✓ Pentesting profesional
+  ✓ Educación en lab controlado
+  ✓ Redes propias
+
+NUNCA PARA:
+  ✗ Actividades ilegales
+  ✗ Sin consentimiento
+  ✗ Acceso no autorizado
+  ✗ Robo de información
+
+AUDITORÍA:
+  → Los logs se guardan automáticamente
+  → Todos los datos están documentados
+  → Se puede generar reporte
+
+
+═══════════════════════════════════════════════════════════════════════════
+🎓 CONCEPTO EDUCATIVO
+═══════════════════════════════════════════════════════════════════════════
+
+Este proyecto implementa el ataque WiFi clásico para ENTENDER:
+
+  ✓ Vulnerabilidades de WiFi
+  ✓ Cómo se capturan credenciales
+  ✓ Importancia de HTTPS
+  ✓ Defensa contra ataques
+  ✓ Seguridad en redes
+
+
+═══════════════════════════════════════════════════════════════════════════
+🎯 FLUJO VISUAL COMPLETO
+═══════════════════════════════════════════════════════════════════════════
+
+Terminal 1:
+  $ sudo python3 quantum_hijack_full.py
+  ↓
+  🔓 QUANTUM-HIJACK RUNNING on port 8080
+
+Navegador:
+  http://localhost:8080
+  ↓
+  Dashboard Web Visible
+
+Dashboard Web:
+  Presiona: 🔥 INICIAR QUANTUM-HIJACK COMPLETO
+  ↓
+  Módulos se vuelven verdes ✓
+
+Terminal 1 (Logs):
+  [✓] Setup completado
+  [✓] Hostapd ACTIVO
+  [✓] Dnsmasq ACTIVO
+  [✓] Interceptor ACTIVO
+  [✓] Dashboard ACTIVO
+
+Teléfono:
+  WiFi: CafeWiFi_Quantum
+  Password: 12345678
+  ↓
+  Conectado ✓
+
+Dashboard Web:
+  Clientes: 1
+  ↓
+  Teléfono aparece en tabla
+
+Teléfono (Usuario navega):
+  https://gmail.com
+  Login: user@gmail.com / password123
+  ↓
+  Envía credenciales
+
+Dashboard Web:
+  Credenciales: 1
+  ↓
+  user@gmail.com | ••••••••• aparece en tabla
+
+¡CAPTURA EXITOSA!
+
+
+═══════════════════════════════════════════════════════════════════════════
+🚀 COMANDO ÚNICO PARA EMPEZAR
+═══════════════════════════════════════════════════════════════════════════
+
+Copia y pega en terminal Kali:
+
+sudo bash QUICK_START.sh && \
+echo "" && \
+echo "Ahora ejecuta:" && \
+echo "  sudo python3 quantum_hijack_full.py" && \
+echo "" && \
+echo "Luego abre en navegador:" && \
+echo "  http://localhost:8080"
+
+
+═══════════════════════════════════════════════════════════════════════════
+💡 TIPS DE USO
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Personalización:
+  - Edita quantum_hijack_full.py para cambiar SSID
+  - Edita hostapd_1.conf para cambiar canal
+  - Edita dnsmasq.conf para cambiar rango IP
+
+✓ Debugging:
+  - Ver terminal de Flask para logs de servidor
+  - Ver Dashboard web para logs de operación
+  - Ver logs/operation_logs.json para historial
+
+✓ Performance:
+  - Aumentar potencia WiFi: sudo iw wlan0mon set txpower fixed 3000
+  - Cambiar canal menos usado: channel=11 en hostapd_1.conf
+
+✓ Seguridad:
+  - SIEMPRE usar en redes autorizadas
+  - SIEMPRE obtener consentimiento
+  - SIEMPRE guardar logs para auditoría
+
+
+═══════════════════════════════════════════════════════════════════════════
+❓ PREGUNTAS FRECUENTES
+═══════════════════════════════════════════════════════════════════════════
+
+P: ¿No aparecen clientes conectados?
+R: Verifica que hostapd esté corriendo. Ve logs en Dashboard.
+
+P: ¿No se capturan credenciales?
+R: Usuario debe intentar login en webs, no solo navegar.
+
+P: ¿Error de puerto 8080?
+R: Otro proceso lo usa. Mata con: sudo lsof -i :8080 | sudo kill -9
+
+P: ¿Modo monitor no funciona?
+R: Instala airmon-ng: sudo apt install airmon-ng
+
+P: ¿Necesito múltiples terminales?
+R: Solo una para el servidor Flask. Dashboard hace el resto.
+
+P: ¿Dónde guarda los datos?
+R: logs/captured_credentials.json y logs/operation_logs.json
+
+Más preguntas → Consulta GUIA_FINAL.md
+
+
+═══════════════════════════════════════════════════════════════════════════
+🎉 ¡LISTO PARA USAR!
+═══════════════════════════════════════════════════════════════════════════
+
+El proyecto está COMPLETAMENTE INTEGRADO.
+
+1. Ejecuta: sudo python3 quantum_hijack_full.py
+2. Abre: http://localhost:8080
+3. Presiona: 🔥 INICIAR QUANTUM-HIJACK COMPLETO
+4. ¡HECHO!
+
+Todo funciona automáticamente.
+
+═══════════════════════════════════════════════════════════════════════════
+
+🔓 QUANTUM-HIJACK v2.0
+
+Herramienta de Hacking Ético - Rogue WiFi + Interceptor
+Completamente integrada en un solo proyecto
+
+Emmanuel 2026

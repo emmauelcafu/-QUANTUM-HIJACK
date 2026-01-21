@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔓 QUANTUM-HIJACK v2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff41;
+            overflow-x: hidden;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        header {
+            background: linear-gradient(135deg, #1a1f3a 0%, #16213e 100%);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        header h1 {
+            font-size: 28px;
+            color: #ff006e;
+            text-shadow: 0 0 10px #ff006e;
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .header-info {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 12px;
+        }
+        
+        .info-item .label { color: #00bfff; }
+        .info-item .value { color: #00ff41; font-weight: bold; }
+        
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .module {
+            background: #16213e;
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .module.active {
+            border-color: #00ff41;
+            box-shadow: 0 0 20px #00ff41;
+            background: #1a2f4a;
+        }
+        
+        .module.error {
+            border-color: #ff006e;
+            box-shadow: 0 0 20px #ff006e;
+        }
+        
+        .module h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #00bfff;
+        }
+        
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.on { background: #00ff41; }
+        .status-dot.off { background: #666; animation: none; }
+        .status-dot.error { background: #ff006e; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .module button {
+            background: #00ff41;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .module button:hover {
+            background: #00cc33;
+            box-shadow: 0 0 10px #00ff41;
+        }
+        
+        .module button.stop {
+            background: #ff006e;
+            color: #fff;
+        }
+        
+        .module button.stop:hover {
+            background: #ff0050;
+            box-shadow: 0 0 10px #ff006e;
+        }
+        
+        .btn-start-all {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #00ff41 0%, #00cc33 100%);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-start-all:hover {
+            box-shadow: 0 0 20px #00ff41;
+            transform: scale(1.02);
+        }
+        
+        .panel {
+            background: #16213e;
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .panel h2 {
+            color: #00bfff;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 1px solid #00ff41;
+            padding-bottom: 10px;
+        }
+        
+        .credentials-table, .clients-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .credentials-table th, .clients-table th {
+            background: #0a0e27;
+            color: #00bfff;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #00ff41;
+        }
+        
+        .credentials-table td, .clients-table td {
+            padding: 10px;
+            border-bottom: 1px solid #1a2f4a;
+        }
+        
+        .credentials-table tr:hover, .clients-table tr:hover {
+            background: #1a2f4a;
+        }
+        
+        .protocol { color: #ffbe0b; font-weight: bold; }
+        .ip { color: #00ff41; }
+        .cred { color: #ff006e; font-weight: bold; }
+        
+        .logs-container {
+            background: #0a0e27;
+            border: 1px solid #00ff41;
+            border-radius: 6px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid #1a2f4a;
+            color: #00ff41;
+        }
+        
+        .log-entry.success { color: #00ff41; }
+        .log-entry.error { color: #ff006e; }
+        .log-entry.process { color: #00bfff; animation: blink 1s infinite; }
+        
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0.5; }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #00ff41;
+            border-radius: 50%;
+            margin: 0 3px;
+            animation: load 1.4s infinite;
+        }
+        
+        @keyframes load {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        .empty {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            header { flex-direction: column; }
+            header h1 { text-align: center; margin-bottom: 15px; }
+            .header-info { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1>🔓 QUANTUM-HIJACK v2.0</h1>
+            <div class="header-info">
+                <div class="info-item">
+                    <span class="label">SSID</span>
+                    <span class="value" id="ssid-val">CafeWiFi_Quantum</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Gateway</span>
+                    <span class="value" id="gateway-val">192.168.1.1</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Clientes</span>
+                    <span class="value" id="clients-count">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Credenciales</span>
+                    <span class="value" id="creds-count">0</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- BOTÓN START ALL -->
+        <button class="btn-start-all" id="btn-start-all">
+            🔥 INICIAR QUANTUM-HIJACK COMPLETO
+        </button>
+        
+        <!-- MÓDULOS -->
+        <div class="module-grid">
+            <div class="module" id="module-setup">
+                <h3>Setup</h3>
+                <span class="status-dot off"></span>
+                <span id="status-setup">Inactivo</span>
+                <button id="btn-setup" onclick="startModule('setup')">Ejecutar</button>
+            </div>
+            
+            <div class="module" id="module-hostapd">
+                <h3>Hostapd</h3>
+                <span class="status-dot off"></span>
+                <span id="status-hostapd">Inactivo</span>
+                <button id="btn-hostapd" onclick="startModule('hostapd')">Ejecutar</button>
+            </div>
+            
+            <div class="module" id="module-dnsmasq">
+                <h3>Dnsmasq</h3>
+                <span class="status-dot off"></span>
+                <span id="status-dnsmasq">Inactivo</span>
+                <button id="btn-dnsmasq" onclick="startModule('dnsmasq')">Ejecutar</button>
+            </div>
+            
+            <div class="module" id="module-interceptor">
+                <h3>Interceptor</h3>
+                <span class="status-dot off"></span>
+                <span id="status-interceptor">Inactivo</span>
+                <button id="btn-interceptor" onclick="startModule('interceptor')">Ejecutar</button>
+            </div>
+            
+            <div class="module" id="module-dashboard">
+                <h3>Dashboard</h3>
+                <span class="status-dot off"></span>
+                <span id="status-dashboard">Inactivo</span>
+                <button id="btn-dashboard" onclick="startModule('dashboard')">Ejecutar</button>
+            </div>
+            
+            <div class="module" id="module-stop">
+                <h3>Control</h3>
+                <span class="status-dot off"></span>
+                <span id="status-stop">Listo</span>
+                <button class="stop" id="btn-stop-all" onclick="stopAll()">⛔ DETENER TODO</button>
+            </div>
+        </div>
+        
+        <!-- CLIENTES CONECTADOS -->
+        <div class="panel">
+            <h2>📱 Clientes Conectados</h2>
+            <table class="clients-table">
+                <thead>
+                    <tr>
+                        <th>MAC Address</th>
+                        <th>IP</th>
+                        <th>Conectado</th>
+                        <th>Señal</th>
+                    </tr>
+                </thead>
+                <tbody id="clients-tbody">
+                    <tr><td colspan="4" class="empty">Esperando clientes...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- CREDENCIALES CAPTURADAS -->
+        <div class="panel">
+            <h2>🔥 Credenciales Capturadas</h2>
+            <table class="credentials-table">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Protocolo</th>
+                        <th>Usuario/Email</th>
+                        <th>Contraseña</th>
+                        <th>Origen</th>
+                    </tr>
+                </thead>
+                <tbody id="credentials-tbody">
+                    <tr><td colspan="5" class="empty">Esperando capturar credenciales...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- LOGS -->
+        <div class="panel">
+            <h2>📋 Operaciones en Vivo</h2>
+            <div class="logs-container" id="logs-container">
+                <div class="log-entry">Iniciando sistema...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Estado global
+        const state = {
+            setup: false,
+            hostapd: false,
+            dnsmasq: false,
+            interceptor: false,
+            dashboard: false
+        };
+        
+        // Actualizar estado
+        async function updateStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                // Actualizar módulos
+                updateModule('setup', data.setup_done);
+                updateModule('hostapd', data.modules.hostapd);
+                updateModule('dnsmasq', data.modules.dnsmasq);
+                updateModule('interceptor', data.modules.interceptor);
+                updateModule('dashboard', data.modules.dashboard);
+                
+                // Actualizar contadores
+                document.getElementById('clients-count').textContent = data.clients;
+                document.getElementById('creds-count').textContent = data.credentials;
+                
+                // Actualizar clientes
+                const clientsRes = await fetch('/api/clients');
+                const clientsData = await clientsRes.json();
+                updateClientsTable(clientsData.clients);
+                
+                // Actualizar credenciales
+                const credsRes = await fetch('/api/credentials');
+                const credsData = await credsRes.json();
+                updateCredentialsTable(credsData.credentials);
+                
+                // Actualizar logs
+                const logsRes = await fetch('/api/logs?limit=50');
+                const logsData = await logsRes.json();
+                updateLogs(logsData.logs);
+                
+            } catch (e) {
+                console.error('Error actualizando:', e);
+            }
+        }
+        
+        function updateModule(module, status) {
+            const el = document.getElementById(`module-${module}`);
+            const dot = el.querySelector('.status-dot');
+            const statusText = el.querySelector(`#status-${module}`);
+            
+            if (status) {
+                el.classList.add('active');
+                dot.classList.remove('off');
+                dot.classList.add('on');
+                statusText.textContent = 'ACTIVO ✓';
+            } else {
+                el.classList.remove('active');
+                dot.classList.remove('on');
+                dot.classList.add('off');
+                statusText.textContent = 'Inactivo';
+            }
+        }
+        
+        function updateClientsTable(clients) {
+            const tbody = document.getElementById('clients-tbody');
+            
+            if (!clients || clients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">Esperando clientes...</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = clients.map(c => `
+                <tr>
+                    <td><span class="ip">${c.mac}</span></td>
+                    <td><span class="ip">${c.ip || 'asignando...'}</span></td>
+                    <td>${new Date(c.connected_at).toLocaleTimeString()}</td>
+                    <td>${c.signal || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function updateCredentialsTable(credentials) {
+            const tbody = document.getElementById('credentials-tbody');
+            
+            if (!credentials || credentials.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">Esperando capturar credenciales...</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = credentials.map(c => `
+                <tr>
+                    <td>${c.timestamp}</td>
+                    <td><span class="protocol">${c.protocol}</span></td>
+                    <td><span class="cred">${c.credentials.username || c.credentials.email || 'N/A'}</span></td>
+                    <td><span class="cred">${c.credentials.password ? '*'.repeat(Math.min(c.credentials.password.length, 8)) : 'N/A'}</span></td>
+                    <td><span class="ip">${c.src_ip}:${c.port}</span></td>
+                </tr>
+            `).join('');
+        }
+        
+        function updateLogs(logs) {
+            const container = document.getElementById('logs-container');
+            
+            container.innerHTML = logs.map(log => {
+                let className = 'log-entry';
+                if (log.includes('SUCCESS') || log.includes('✓')) {
+                    className += ' success';
+                } else if (log.includes('ERROR')) {
+                    className += ' error';
+                } else if (log.includes('INICIANDO') || log.includes('PROCESS')) {
+                    className += ' process';
+                }
+                
+                return `<div class="${className}">${log}</div>`;
+            }).join('');
+            
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function startModule(module) {
+            try {
+                const res = await fetch(`/api/init/${module}`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    state[module] = true;
+                    updateModule(module, true);
+                }
+            } catch (e) {
+                console.error(`Error iniciando ${module}:`, e);
+            }
+        }
+        
+        async function stopAll() {
+            if (!confirm('¿Detener todos los módulos?')) return;
+            
+            try {
+                const res = await fetch('/api/stop/all', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    Object.keys(state).forEach(k => state[k] = false);
+                    updateStatus();
+                }
+            } catch (e) {
+                console.error('Error deteniendo:', e);
+            }
+        }
+        
+        async function startAll() {
+            try {
+                const res = await fetch('/api/init/all', { method: 'POST' });
+                const data = await res.json();
+                
+                Object.assign(state, data);
+                await new Promise(r => setTimeout(r, 1000));
+                updateStatus();
+            } catch (e) {
+                console.error('Error iniciando todo:', e);
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('btn-start-all').addEventListener('click', startAll);
+        
+        // Auto-update cada 2 segundos
+        setInterval(updateStatus, 2000);
+        
+        // Actualización inicial
+        updateStatus();
+    </script>
+</body>
+</html>

