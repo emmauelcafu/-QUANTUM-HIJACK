@@ -12,7 +12,7 @@ import time
 import json
 import socket
 from datetime import datetime
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 from scapy.all import ARP, Ether, get_if_hwaddr, conf
 import logging
 
@@ -21,10 +21,55 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Flask app
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['JSON_SORT_KEYS'] = False
 
+# Database para dispositivos infectados
+INFECTED_DB = 'infected_devices.json'
+LOGS_DB = 'operation_logs.json'
+
+def load_infected_devices():
+    """Cargar dispositivos infectados desde archivo"""
+    if os.path.exists(INFECTED_DB):
+        try:
+            with open(INFECTED_DB, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_infected_devices(devices):
+    """Guardar dispositivos infectados"""
+    try:
+        with open(INFECTED_DB, 'w') as f:
+            json.dump(devices, f, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error guardando dispositivos: {e}")
+        return False
+
+def add_log(action, details=""):
+    """Agregar entrada al log de operaciones"""
+    try:
+        logs = []
+        if os.path.exists(LOGS_DB):
+            with open(LOGS_DB, 'r') as f:
+                logs = json.load(f)
+        
+        logs.append({
+            'timestamp': datetime.now().isoformat(),
+            'action': action,
+            'details': details
+        })
+        
+        with open(LOGS_DB, 'w') as f:
+            json.dump(logs[-100:], f, indent=2)  # Guardar últimas 100 entradas
+    except Exception as e:
+        logger.error(f"Error guardando log: {e}")
+
 # Variables globales
+INFECTED_DEVICES = load_infected_devices()
+
 ATTACKS = {
     'arp_spoofing': False,
     'dns_spoofing': False,
@@ -368,7 +413,113 @@ def api_disable_monitor():
         return jsonify({"success": False, "error": str(e)}), 400
 
 # ========================
-# FUNCIÓN PRINCIPAL
+# NUEVOS ENDPOINTS - Dashboard
+# ========================
+
+@app.route('/')
+def dashboard():
+    """Dashboard principal en HTML"""
+    return render_template('index.html')
+
+@app.route('/api/infected', methods=['GET'])
+def api_infected():
+    """API: Obtener dispositivos infectados"""
+    return jsonify({
+        "total": len(INFECTED_DEVICES),
+        "devices": INFECTED_DEVICES
+    })
+
+@app.route('/api/infected/add', methods=['POST'])
+def api_add_infected():
+    """API: Agregar dispositivo a lista de infectados"""
+    try:
+        device = request.json
+        device['timestamp'] = datetime.now().isoformat()
+        device['status'] = 'Comprometido'
+        
+        # Evitar duplicados
+        if not any(d['ip'] == device['ip'] for d in INFECTED_DEVICES):
+            INFECTED_DEVICES.append(device)
+            save_infected_devices(INFECTED_DEVICES)
+            add_log('DEVICE_INFECTED', f"IP: {device['ip']}, MAC: {device['mac']}")
+            
+            return jsonify({
+                "success": True,
+                "message": f"Dispositivo {device['ip']} agregado"
+            })
+        return jsonify({
+            "success": False,
+            "message": "Dispositivo ya existe"
+        }), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/infected/remove/<ip>', methods=['DELETE'])
+def api_remove_infected(ip):
+    """API: Remover dispositivo de lista de infectados"""
+    global INFECTED_DEVICES
+    try:
+        INFECTED_DEVICES = [d for d in INFECTED_DEVICES if d['ip'] != ip]
+        save_infected_devices(INFECTED_DEVICES)
+        add_log('DEVICE_REMOVED', f"IP: {ip}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Dispositivo {ip} removido"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/infected/clear', methods=['DELETE'])
+def api_clear_infected():
+    """API: Limpiar lista de infectados"""
+    global INFECTED_DEVICES
+    try:
+        count = len(INFECTED_DEVICES)
+        INFECTED_DEVICES = []
+        save_infected_devices(INFECTED_DEVICES)
+        add_log('INFECTED_CLEARED', f"Total removido: {count}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"{count} dispositivos removidos"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/logs', methods=['GET'])
+def api_logs():
+    """API: Obtener logs de operaciones"""
+    try:
+        if os.path.exists(LOGS_DB):
+            with open(LOGS_DB, 'r') as f:
+                logs = json.load(f)
+            return jsonify({
+                "total": len(logs),
+                "logs": logs[-50:]  # Últimos 50 logs
+            })
+        return jsonify({
+            "total": 0,
+            "logs": []
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@app.route('/api/export', methods=['GET'])
+def api_export():
+    """API: Exportar datos completos"""
+    try:
+        return jsonify({
+            "timestamp": datetime.now().isoformat(),
+            "infected_devices": INFECTED_DEVICES,
+            "current_attacks": ATTACKS,
+            "stats": STATS
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+
+# ========================
+# Rutas anteriores (mantenidas)
 # ========================
 
 def main():
@@ -414,11 +565,21 @@ def main():
     ─────────────────────────────────────────────────
     [DASHBOARD ACTIVO]
     
-    🌐 URL Local:  http://{local_ip}:8080
-    🌐 URL Externa: http://0.0.0.0:8080
+    🌐 DASHBOARD WEB:  http://{local_ip}:8080
+    🌐 URL Externa:    http://0.0.0.0:8080
     📡 Interfaz Monitor: {hijack.monitor_interface or 'No configurada'}
     
-    [API ENDPOINTS]
+    [NUEVOS ENDPOINTS DASHBOARD]
+    
+    GET  /              - Dashboard HTML profesional
+    GET  /api/infected  - Dispositivos infectados
+    POST /api/infected/add - Agregar infectado
+    DELETE /api/infected/remove/<ip> - Remover infectado
+    DELETE /api/infected/clear - Limpiar historial
+    GET  /api/logs      - Logs de operaciones
+    GET  /api/export    - Exportar datos
+    
+    [API ENDPOINTS CLÁSICOS]
     
     GET  /api/status         - Estado del sistema
     POST /api/scan           - Escanear red local
@@ -439,13 +600,17 @@ def main():
         print("\n\n⛔ DETENIENDO APLICACIÓN...")
         print("─" * 50)
         
+        # Guardar datos antes de salir
+        save_infected_devices(INFECTED_DEVICES)
+        add_log('APP_SHUTDOWN', 'Aplicación cerrada normalmente')
+        
         # Restaurar interfaz a modo managed
         if hijack.monitor_interface:
             print("🔄 Restaurando interfaz a modo normal...")
             hijack.restore_managed_mode()
         
         hijack.running = False
-        print("✅ Limpieza completada. ¡Hasta pronto!")
+        print("✅ Datos guardados. Limpieza completada. ¡Hasta pronto!")
         print("─" * 50 + "\n")
         sys.exit(0)
     except Exception as e:
