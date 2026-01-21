@@ -34,9 +34,10 @@ QUANTUM-HIJACK es una herramienta educativa que implementa el concepto clásico 
 **Software:**
 ```bash
 sudo apt update
-sudo apt install -y python3-pip hostapd dnsmasq airmon-ng iw scapy
+sudo apt install -y python3-flask python3-scapy hostapd dnsmasq aircrack-ng iw
 
-pip3 install flask flask-cors
+# Verificar instalación
+python3 -c "import flask, scapy; print('✅ Dependencias OK')"
 ```
 
 ## 🚀 Instalación Rápida

