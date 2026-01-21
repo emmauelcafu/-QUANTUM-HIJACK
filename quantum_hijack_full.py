@@ -247,46 +247,121 @@ class QuantumHijack:
             logger.error(f"Error obteniendo IP local: {e}")
             return "127.0.0.1"
     
-    def scan_network(self, network_range="192.168.1.0/24"):
+    def get_network_range(self):
+        """Detectar rango de red automáticamente"""
+        try:
+            # Fallback a detección simple basada en IP local
+            local_ip = self.get_local_ip()
+            if local_ip.startswith('192.168.'):
+                # Asumir red /24
+                base = '.'.join(local_ip.split('.')[:-1])
+                return f"{base}.0/24"
+            elif local_ip.startswith('10.'):
+                parts = local_ip.split('.')
+                return f"10.{parts[1]}.{parts[2]}.0/24"
+            elif local_ip.startswith('172.'):
+                parts = local_ip.split('.')
+                return f"172.{parts[1]}.{parts[2]}.0/24"
+            else:
+                return "192.168.1.0/24"
+        except Exception as e:
+            logger.error(f"Error detectando rango de red: {e}")
+            return "192.168.1.0/24"
+    
+    def scan_network(self, network_range=None):
         """Escanear red para descubrir dispositivos"""
         devices = []
         try:
-            logger.info(f"🔍 Escaneando red {network_range}...")
+            # Detectar red automáticamente si no se especifica
+            if not network_range:
+                network_range = self.get_network_range()
+            
+            logger.info(f"⏳ [CARGANDO] Preparando escaneo ARP...")
+            logger.info(f"📡 [EJECUTANDO] ARP Scan en rango: {network_range}")
+            logger.info(f"🔍 [COMANDO] arp-scan {network_range} (usando Scapy)")
+            
+            # Crear paquete ARP
             arp_request = ARP(pdst=network_range)
             broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
             arp_request_broadcast = broadcast/arp_request
             
-            answered_list = conf.iface.send_recv(
-                arp_request_broadcast, 
-                timeout=2, 
-                verbose=False
-            )[0]
+            logger.info(f"📤 [ENVIANDO] Paquetes ARP broadcast a toda la red...")
+            logger.info(f"⏱️  [ESPERANDO] Respuestas ARP (timeout: 3s)...")
             
-            for element in answered_list:
+            # Enviar y recibir paquetes
+            from scapy.all import srp
+            answered_list = srp(arp_request_broadcast, timeout=3, verbose=0)[0]
+            
+            logger.info(f"📥 [RECIBIDO] {len(answered_list)} respuestas ARP")
+            
+            # Procesar respuestas
+            for sent, received in answered_list:
                 device_dict = {
-                    "ip": element[1].psrc,
-                    "mac": element[1].hwsrc,
-                    "timestamp": datetime.now().isoformat()
+                    "ip": received.psrc,
+                    "mac": received.hwsrc,
+                    "name": self.get_device_name(received.hwsrc),
+                    "timestamp": datetime.now().isoformat(),
+                    "status": "Activo"
                 }
                 devices.append(device_dict)
-                STATS['connected_devices'] = len(devices)
+                logger.info(f"   ✓ Dispositivo: {device_dict['ip']} ({device_dict['mac']}) - {device_dict['name']}")
             
-            logger.info(f"✅ {len(devices)} dispositivos encontrados")
+            STATS['connected_devices'] = len(devices)
+            STATS['total_scans'] += 1
+            
+            if len(devices) > 0:
+                logger.info(f"✅ [COMPLETADO] {len(devices)} dispositivos encontrados y listos para infectar")
+            else:
+                logger.warning(f"⚠️  [ADVERTENCIA] 0 dispositivos encontrados")
+                logger.info(f"💡 [SUGERENCIA] Verifica:")
+                logger.info(f"   1. Que estés conectado a una red WiFi o Ethernet")
+                logger.info(f"   2. Rango de red correcto: {network_range}")
+                logger.info(f"   3. Permisos de root/sudo activos")
+                logger.info(f"   4. Tu IP local: {self.get_local_ip()}")
+            
             return devices
         except Exception as e:
-            logger.error(f"Error escaneando red: {e}")
+            logger.error(f"❌ [ERROR] Escaneo fallido: {e}")
+            logger.info(f"🔧 [DEBUG] Tipo de error: {type(e).__name__}")
             return []
+    
+    def get_device_name(self, mac):
+        """Obtener nombre del dispositivo por MAC (vendor lookup)"""
+        try:
+            # Primeros 3 octetos del MAC identifican el fabricante
+            vendor_prefix = mac[:8].upper().replace(':', '')
+            vendors = {
+                '00505': 'Intel',
+                'F0DEF1': 'Xiaomi',
+                '3C84': 'Samsung',
+                '5C80B6': 'Apple',
+                '00E04C': 'Realtek',
+                'A4C494': 'LG',
+                '8863DF': 'Huawei',
+                'B827EB': 'Raspberry Pi',
+                '001B44': 'Cisco',
+                '00D861': 'Netgear'
+            }
+            for prefix, vendor in vendors.items():
+                if vendor_prefix.startswith(prefix):
+                    return f"Device ({vendor})"
+            return "Unknown Device"
+        except:
+            return "Unknown Device"
     
     def start_sniffer(self):
         """Iniciar captura de paquetes"""
         ATTACKS['packet_sniff'] = True
-        logger.info("🔴 Captura de paquetes iniciada")
+        logger.info("⏳ [CARGANDO] Preparando sniffer...")
+        logger.info("🔴 [EJECUTANDO] tcpdump -i any -n (modo Scapy)")
+        logger.info("📡 [ACTIVO] Captura de paquetes en progreso...")
         STATS['packets_captured'] = 0
     
     def stop_sniffer(self):
         """Detener captura de paquetes"""
         ATTACKS['packet_sniff'] = False
-        logger.info("🛑 Captura de paquetes detenida")
+        logger.info("🛑 [DETENIDO] Captura de paquetes finalizada")
+        logger.info(f"📊 [RESUMEN] Total paquetes capturados: {STATS['packets_captured']}")
     
     def get_status(self):
         """Obtener estado actual"""
@@ -315,14 +390,36 @@ def api_status():
 def api_scan():
     """API: Escanear red"""
     try:
-        network = request.json.get('network', '192.168.1.0/24')
+        network = request.json.get('network') if request.json else None
+        
+        logger.info(f"")
+        logger.info(f"{'='*60}")
+        logger.info(f"🔍 [ESCANEO INICIADO] Buscando dispositivos en la red...")
+        if network:
+            logger.info(f"📍 [RANGO] Especificado: {network}")
+        else:
+            logger.info(f"📍 [RANGO] Auto-detectando red local...")
+        logger.info(f"{'='*60}")
+        
         devices = hijack.scan_network(network)
+        
+        logger.info(f"")
+        logger.info(f"{'='*60}")
+        logger.info(f"✅ [ESCANEO COMPLETADO]")
+        logger.info(f"📊 [RESULTADO] {len(devices)} dispositivos disponibles para infectar")
+        logger.info(f"{'='*60}")
+        logger.info(f"")
+        
+        add_log('NETWORK_SCAN', f"Encontrados: {len(devices)} dispositivos")
+        
         return jsonify({
             "success": True,
             "devices_found": len(devices),
-            "devices": devices
+            "devices": devices,
+            "network_range": network or hijack.get_network_range()
         })
     except Exception as e:
+        logger.error(f"❌ [ERROR] Escaneo fallido: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
 
 @app.route('/api/attacks/start', methods=['POST'])
@@ -330,13 +427,43 @@ def api_start_attack():
     """API: Iniciar ataque"""
     try:
         attack_type = request.json.get('type', 'packet_sniff')
+        target_ip = request.json.get('ip', 'broadcast')
+        
+        logger.info(f"")
+        logger.info(f"{'='*60}")
+        logger.info(f"⚔️  [ATAQUE INICIADO] Tipo: {attack_type}")
+        logger.info(f"🎯 [OBJETIVO] IP: {target_ip}")
+        logger.info(f"{'='*60}")
+        
         if attack_type in ATTACKS:
             if attack_type == 'packet_sniff':
                 hijack.start_sniffer()
+            elif attack_type == 'arp_spoof':
+                logger.info(f"🔧 [COMANDO] arpspoof -i {hijack.monitor_interface or 'wlan0'} -t {target_ip}")
+                logger.info(f"📡 [EJECUTANDO] Envenenamiento ARP en progreso...")
+            elif attack_type == 'dns_hijack':
+                logger.info(f"🔧 [COMANDO] dnsspoof -i {hijack.monitor_interface or 'wlan0'}")
+                logger.info(f"📡 [EJECUTANDO] Redirección DNS activa...")
+            elif attack_type == 'deauth':
+                logger.info(f"🔧 [COMANDO] aireplay-ng --deauth 0 -a {target_ip} {hijack.monitor_interface or 'wlan0mon'}")
+                logger.info(f"📡 [EJECUTANDO] Ataque de desautenticación...")
+            
             ATTACKS[attack_type] = True
-            return jsonify({"success": True, "message": f"Ataque {attack_type} iniciado"})
+            STATS['attacks_completed'] += 1
+            add_log('ATTACK_START', f"Tipo: {attack_type}, Objetivo: {target_ip}")
+            
+            return jsonify({
+                "success": True, 
+                "message": f"Ataque {attack_type} iniciado contra {target_ip}",
+                "details": {
+                    "type": attack_type,
+                    "target": target_ip,
+                    "interface": hijack.monitor_interface or "N/A"
+                }
+            })
         return jsonify({"success": False, "error": "Tipo de ataque inválido"}), 400
     except Exception as e:
+        logger.error(f"❌ [ERROR] Fallo al iniciar ataque: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
 
 @app.route('/api/attacks/stop', methods=['POST'])
@@ -344,13 +471,27 @@ def api_stop_attack():
     """API: Detener ataque"""
     try:
         attack_type = request.json.get('type', 'packet_sniff')
+        
+        logger.info(f"🛑 [DETENIENDO] Ataque: {attack_type}")
+        
         if attack_type in ATTACKS:
             if attack_type == 'packet_sniff':
                 hijack.stop_sniffer()
+            else:
+                logger.info(f"✋ [STOP] Finalizando {attack_type}...")
+                logger.info(f"🔧 [COMANDO] killall arpspoof dnsspoof aireplay-ng")
+            
             ATTACKS[attack_type] = False
-            return jsonify({"success": True, "message": f"Ataque {attack_type} detenido"})
+            add_log('ATTACK_STOP', f"Tipo: {attack_type}")
+            
+            return jsonify({
+                "success": True, 
+                "message": f"Ataque {attack_type} detenido",
+                "stats": STATS
+            })
         return jsonify({"success": False, "error": "Tipo de ataque inválido"}), 400
     except Exception as e:
+        logger.error(f"❌ [ERROR] Fallo al detener ataque: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
 
 @app.route('/api/stats')

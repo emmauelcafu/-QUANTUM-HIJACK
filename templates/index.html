@@ -83,6 +83,11 @@
             background-color: var(--primary);
             animation: pulse 2s infinite;
         }
+        
+        /* Semáforo estados */
+        .state-green { background-color: #21d07a !important; box-shadow: 0 0 10px #21d07a; }
+        .state-yellow { background-color: #ffbe0b !important; box-shadow: 0 0 10px #ffbe0b; }
+        .state-red { background-color: #ff006e !important; box-shadow: 0 0 10px #ff006e; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -136,6 +141,14 @@
             transition: all 0.3s;
             margin: 5px;
         }
+        
+        .btn-lg { padding: 18px 28px; font-size: 16px; border-width: 3px; }
+        .btn-green { border-color: #21d07a; color: #21d07a; }
+        .btn-green:hover { background-color: #21d07a; color: #0a0e27; }
+        .btn-orange { border-color: #ff7a00; color: #ff7a00; }
+        .btn-orange:hover { background-color: #ff7a00; color: #0a0e27; }
+        .btn-red { border-color: #ff006e; color: #ff006e; }
+        .btn-red:hover { background-color: #ff006e; color: #ffffff; }
 
         .btn:hover {
             background-color: var(--primary);
@@ -327,6 +340,18 @@
             animation: spin 0.6s linear infinite;
             margin-right: 5px;
         }
+        
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        #loading-overlay.active { display: flex; }
+        .loading-box { background: var(--dark); border:2px solid var(--primary); padding: 20px 30px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,255,65,0.3); display:flex; align-items:center; gap:12px; }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -415,6 +440,15 @@
                 grid-template-columns: 1fr;
             }
         }
+        
+        /* CTA Row */
+        .cta-row { display:flex; gap:12px; flex-wrap:wrap; padding: 16px 20px; border-bottom:1px solid rgba(0,255,65,0.2); background: rgba(10,14,39,0.5); }
+        
+        /* Toasts */
+        .toast-container { position: fixed; right: 20px; bottom: 20px; display:flex; flex-direction: column; gap: 8px; z-index: 3000; }
+        .toast { background: rgba(10,14,39,0.95); border: 1px solid var(--primary); color: var(--primary); padding: 10px 14px; border-radius: 6px; box-shadow: 0 0 12px rgba(0,255,65,0.2); min-width: 240px; }
+        .toast.warn { border-color: var(--warning); color: var(--warning); }
+        .toast.error { border-color: var(--danger); color: var(--danger); }
 
         /* Terminal Effect */
         .glitch {
@@ -454,10 +488,24 @@
                 <span id="status">Inicializando...</span>
             </div>
             <div class="status-item">
+                <span>🌐</span>
+                <span id="header-ip">IP: --.--.--.--</span>
+            </div>
+            <div class="status-item">
                 <span>🕐</span>
                 <span class="time" id="time">--:--:--</span>
             </div>
+            <div class="status-item">
+                <button class="btn btn-small btn-orange" onclick="toggleAttacksMenu()">⚔️ Ataques ▼</button>
+            </div>
         </div>
+    </div>
+
+    <!-- CTA Big Buttons -->
+    <div class="cta-row">
+        <button class="btn btn-lg btn-green" onclick="startScan()">🔍 ESCANEAR<br><span style="font-size:12px;color:#8ef5b1">WiFi / LAN</span></button>
+        <button class="btn btn-lg btn-red" onclick="infectSelected()">🦠 INFECTAR ✓<br><span style="font-size:12px;color:#ffb3cd">Seleccionados</span></button>
+        <button class="btn btn-lg btn-orange" onclick="toggleAttacksMenu()">⚔️ ATAQUES<br><span style="font-size:12px;color:#ffd199">ARP / DNS / Deauth</span></button>
     </div>
 
     <!-- Main Container -->
@@ -514,26 +562,40 @@
         <div class="panel section-full">
             <div class="panel-title">⚔️ Dispositivos Infectados/Comprometidos</div>
             
-            <div class="device-list" id="infected-list" style="max-height: 300px;">
-                <div class="device-item">
-                    <div class="device-info">
-                        <div>No hay dispositivos registrados</div>
-                    </div>
-                </div>
+            <div style="overflow:auto; max-height:320px; border:1px solid rgba(0,255,65,0.2); border-radius:6px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"><input type="checkbox" id="infected-select-all" onclick="toggleSelectAllInfected(this)"></th>
+                            <th>IP</th>
+                            <th>MAC</th>
+                            <th>Status</th>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="infected-tbody">
+                        <tr><td colspan="6" style="color:#888;">No hay dispositivos registrados</td></tr>
+                    </tbody>
+                </table>
             </div>
 
             <div class="action-buttons">
-                <button class="btn btn-small btn-danger" onclick="markSelected()">🎯 Marcar como infectado</button>
-                <button class="btn btn-small" onclick="exportData()">💾 Exportar datos</button>
-                <button class="btn btn-small btn-danger" onclick="clearHistory()">🗑️ Limpiar historial</button>
+                <button class="btn btn-small btn-danger" onclick="removeSelectedInfected()">🗑️ Remover seleccionados</button>
+                <button class="btn btn-small" onclick="exportData()">💾 Exportar JSON</button>
+                <button class="btn btn-small btn-danger" onclick="clearHistory()">🧹 Limpiar todo</button>
             </div>
         </div>
 
-        <!-- Panel 4: Statistics -->
+        <div id="loading-overlay"><div class="loading-box"><div class="spinner"></div><div id="loading-text">Cargando...</div></div></div>
+        <div class="toast-container" id="toast-container"></div>
+
+        <script>
         <div class="panel">
             <div class="panel-title">📊 Estadísticas</div>
             
             <div class="grid-2">
+            let isScanning = false;
                 <div class="stat-box">
                     <div class="stat-value" id="packets">0</div>
                     <div class="stat-label">Paquetes</div>
@@ -557,22 +619,32 @@
                 <div class="console-line">[>] Sistema listo</div>
             </div>
 
-            <div class="console-input">
-                <input type="text" id="console-input" placeholder="Comando..." onkeypress="handleConsoleInput(event)">
-                <button class="btn btn-small" onclick="executeCommand()">EXEC</button>
+                    document.getElementById('status').textContent = isScanning ? 'Escaneando...' : 'En línea';
+                    document.querySelector('.status-indicator').classList.toggle('state-yellow', isScanning);
+                    document.querySelector('.status-indicator').classList.toggle('state-green', !isScanning);
+                    document.querySelector('.status-indicator').classList.remove('state-red');
+
+                    document.getElementById('header-ip').textContent = `IP: ${data.local_ip}`;
+
+                    animateCounter('packets', data.stats.packets_captured || 0);
+                    animateCounter('credentials', data.stats.credentials_found || 0);
             </div>
-        </div>
+                    document.getElementById('status').textContent = 'Offline';
+                    const ind = document.querySelector('.status-indicator');
+                    ind.classList.remove('state-green','state-yellow');
+                    ind.classList.add('state-red');
 
         <!-- Panel 6: Attack Panel -->
         <div class="panel">
             <div class="panel-title">⚡ Panel de Control de Ataques</div>
             
-            <div class="action-buttons">
+                addConsole('[*] Iniciando escaneo de red...');
+                isScanning = true; toggleLoading(true, 'Escaneando red...');
                 <button class="btn btn-small" onclick="startArpSpoof()">ARP Spoofing</button>
                 <button class="btn btn-small" onclick="startDnsSpoof()">DNS Spoofing</button>
                 <button class="btn btn-small" onclick="startSniff()">Packet Sniff</button>
                 <button class="btn btn-small" onclick="startDeauth()">Deauth</button>
-            </div>
+                        body: JSON.stringify({})
 
             <div id="attack-status" class="status-box inactive">
                 <strong>Estado:</strong> <span id="attack-status-text">Inactivo</span>
@@ -581,8 +653,12 @@
             <div class="info">
                 Control de ataques en tiempo real
             </div>
+                    showToast(`${data.devices_found} dispositivos encontrados`, data.devices_found > 0 ? 'ok' : 'warn');
         </div>
     </div>
+                    showToast('Error en escaneo', 'error');
+                } finally {
+                    isScanning = false; toggleLoading(false);
 
     <!-- Modal para detalles -->
     <div class="modal" id="detailModal">
@@ -590,16 +666,38 @@
             <span class="close-modal" onclick="closeModal()">&times;</span>
             <div class="modal-title">Detalles del Dispositivo</div>
             <div id="modal-body"></div>
-        </div>
-    </div>
-
-    <script>
-        const API_URL = 'http://' + window.location.hostname + ':8080';
-        let devices = [];
-        let infectedDevices = [];
-        let selectedDevice = null;
-
+                    <tr class="infected">
+                        <td><input type="checkbox" class="infected-check" data-index="${idx}"></td>
+                        <td>${dev.ip}</td>
+                        <td>${dev.mac}</td>
+                        <td>${dev.status}</td>
+                        <td>${new Date(dev.timestamp).toLocaleString()}</td>
+                        <td><button class="btn btn-small btn-danger" onclick="removeInfected(${idx})">X</button></td>
+                    </tr>
+                `).join('');
         // Actualizar hora
+
+            function removeInfected(index) {
+                infectedDevices.splice(index, 1);
+                document.getElementById('infected-count').textContent = infectedDevices.length;
+                updateInfectedList();
+                showToast('Dispositivo removido', 'ok');
+            }
+
+            function toggleSelectAllInfected(master) {
+                document.querySelectorAll('.infected-check').forEach(cb => cb.checked = master.checked);
+            }
+
+            function removeSelectedInfected() {
+                const checks = Array.from(document.querySelectorAll('.infected-check'));
+                const toRemove = checks.filter(cb => cb.checked).map(cb => parseInt(cb.getAttribute('data-index')));
+                if (toRemove.length === 0) { showToast('No hay seleccionados', 'warn'); return; }
+                // Remove from end to keep indexes valid
+                toRemove.sort((a,b)=>b-a).forEach(i => infectedDevices.splice(i,1));
+                document.getElementById('infected-count').textContent = infectedDevices.length;
+                updateInfectedList();
+                showToast('Seleccionados removidos', 'ok');
+            }
         function updateTime() {
             const now = new Date();
             document.getElementById('time').textContent = now.toLocaleTimeString();
@@ -680,6 +778,7 @@
         function markSelected() {
             if (!selectedDevice) {
                 addConsole('[!] Selecciona un dispositivo primero');
+                showToast('Selecciona un dispositivo', 'warn');
                 return;
             }
 
@@ -693,7 +792,13 @@
                 document.getElementById('infected-count').textContent = infectedDevices.length;
                 updateInfectedList();
                 addConsole(`[+] ${selectedDevice.ip} marcado como infectado`);
+                showToast(`${selectedDevice.ip} marcado como infectado`, 'ok');
             }
+        }
+
+        function infectSelected() {
+            if (!selectedDevice) { showToast('No hay dispositivo seleccionado', 'warn'); return; }
+            markSelected();
         }
 
         // Actualizar lista de infectados
@@ -885,6 +990,7 @@
             a.download = `quantum-hijack-${Date.now()}.json`;
             a.click();
             addConsole('[+] Datos exportados');
+            showToast('Exportación completada', 'ok');
         }
 
         // Limpiar historial
@@ -898,9 +1004,52 @@
         }
 
         // Iniciar
-        setInterval(updateStatus, 2000);
+        // Utilidades UI
+        function toggleLoading(show, text) {
+            const overlay = document.getElementById('loading-overlay');
+            const t = document.getElementById('loading-text');
+            if (text) t.textContent = text; else t.textContent = 'Cargando...';
+            overlay.classList.toggle('active', !!show);
+        }
+
+        function showToast(message, type='ok') {
+            const cont = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            el.className = 'toast' + (type==='warn' ? ' warn' : type==='error' ? ' error' : '');
+            el.textContent = message;
+            cont.appendChild(el);
+            setTimeout(()=>{ el.remove(); }, 4000);
+        }
+
+        function animateCounter(id, target) {
+            const el = document.getElementById(id);
+            const current = parseInt(el.textContent || '0', 10) || 0;
+            const diff = target - current;
+            if (diff === 0) return;
+            const steps = 20;
+            let i = 0;
+            const inc = diff / steps;
+            const timer = setInterval(()=>{
+                i++;
+                const val = Math.round(current + inc * i);
+                el.textContent = val;
+                if (i>=steps) { el.textContent = target; clearInterval(timer); }
+            }, 50);
+        }
+
+        function toggleAttacksMenu() {
+            // Simple: saltar al panel de ataques
+            document.querySelectorAll('.panel .panel-title').forEach((t)=>{
+                if (t.textContent.includes('Panel de Control')) t.scrollIntoView({behavior:'smooth'});
+            });
+        }
+
+        // Auto tareas
+        setInterval(updateStatus, 5000);
         updateStatus();
         addConsole('[+] Dashboard iniciado');
+        // Auto export cada 10 minutos
+        setInterval(()=>{ exportData(); showToast('Exportación automática realizada', 'ok'); }, 600000);
     </script>
 </body>
 </html>
