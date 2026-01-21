@@ -306,16 +306,6 @@ hijack = QuantumHijack()
 # RUTAS FLASK
 # ========================
 
-@app.route('/')
-def dashboard():
-    """Dashboard principal"""
-    return jsonify({
-        "app": "QUANTUM-HIJACK",
-        "version": "2026.1",
-        "status": "running",
-        "message": "Accede a /api/status para más información"
-    })
-
 @app.route('/api/status')
 def api_status():
     """API: Estado actual del sistema"""

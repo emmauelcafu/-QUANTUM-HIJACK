@@ -1,0 +1,193 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║          🔓 QUANTUM-HIJACK v2.0 - INSTRUCCIONES DE EJECUCIÓN             ║
+║                                                                            ║
+║              ✅ PROBLEMA CORREGIDO - LISTO PARA EJECUTAR                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+ 📌 ERROR CORREGIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+El error que viste era:
+    AssertionError: View function mapping is overwriting an existing endpoint 
+    function: dashboard
+
+CAUSA: Había dos rutas @app.route('/') definidas en el código
+SOLUCIÓN: ✅ ELIMINADA la ruta duplicada
+
+El archivo quantum_hijack_full.py ha sido actualizado y ahora NO tiene 
+rutas duplicadas.
+
+═══════════════════════════════════════════════════════════════════════════════
+ 🚀 CÓMO EJECUTAR (3 PASOS)
+═══════════════════════════════════════════════════════════════════════════════
+
+PASO 1: Instalar dependencias (SOLO la primera vez)
+─────────────────────────────────────────────────
+
+En tu Kali Linux, abre terminal en la carpeta del proyecto y ejecuta:
+
+    sudo bash setup.sh
+
+O manualmente:
+
+    sudo apt update
+    sudo apt install -y aircrack-ng hostapd dnsmasq wireless-tools iw net-tools
+    sudo apt install -y python3 python3-pip
+    sudo pip3 install -r requirements.txt
+
+PASO 2: Ejecutar el programa
+─────────────────────────────
+
+    sudo python3 quantum_hijack_full.py
+
+Verás una salida como:
+
+    ╔════════════════════════════════════════╗
+    ║   QUANTUM-HIJACK 2026 - ACTIVO        ║
+    ║   Herramienta de Hacking Ético v2.0   ║
+    ╚════════════════════════════════════════╝
+
+    ✓ Servicio Flask iniciado en 0.0.0.0:8080
+    ✓ Interfaz de red detectada: wlan0
+    ✓ Modo Monitor: Activado
+
+    🌐 DASHBOARD WEB:
+       http://localhost:8080
+       http://127.0.0.1:8080
+
+
+PASO 3: Abrir en navegador
+──────────────────────────
+
+En tu navegador web (Chrome, Firefox, etc) ve a:
+
+    http://localhost:8080
+
+¡Verás el dashboard profesional!
+
+═══════════════════════════════════════════════════════════════════════════════
+ 🎮 USO DEL DASHBOARD
+═══════════════════════════════════════════════════════════════════════════════
+
+Una vez abierto el dashboard en http://localhost:8080, podrás:
+
+1. 📡 VER ESTADO DEL MONITOR
+   - Estado de la interfaz WiFi
+   - Modo Monitor activado/desactivado
+   - IP local del servidor
+
+2. 🖥️ ESCANEAR RED
+   - Click en botón "Iniciar Escaneo"
+   - Detecta todos los dispositivos en la red
+   - Muestra IP, MAC address y detalles
+
+3. ⚔️ MARCAR DISPOSITIVOS INFECTADOS
+   - Click en dispositivo de la tabla
+   - Botón "Marcar como Infectado"
+   - Se guarda automáticamente en JSON
+
+4. 📊 VER ESTADÍSTICAS
+   - Total de dispositivos escaneados
+   - Dispositivos infectados activos
+   - Ataques completados
+
+5. 💻 CONSOLA DE COMANDOS
+   - Ejecutar comandos desde web
+   - Historial de operaciones
+   - Logs automáticos
+
+6. ⚡ CONTROL DE ATAQUES
+   - ARP Spoofing
+   - DNS Hijacking
+   - Packet Flooding
+
+═══════════════════════════════════════════════════════════════════════════════
+ 🛑 PARAR EL PROGRAMA
+═══════════════════════════════════════════════════════════════════════════════
+
+En la terminal donde corre, presiona:
+
+    Ctrl + C
+
+El programa restaura automáticamente la interfaz WiFi a modo normal.
+
+═══════════════════════════════════════════════════════════════════════════════
+ 📡 ENDPOINTS DE API (para pruebas)
+═══════════════════════════════════════════════════════════════════════════════
+
+GET  http://localhost:8080/api/status              Ver estado del sistema
+GET  http://localhost:8080/api/devices             Listar dispositivos
+GET  http://localhost:8080/api/infected            Dispositivos infectados
+POST http://localhost:8080/api/scan                Iniciar escaneo
+POST http://localhost:8080/api/infected/add        Marcar como infectado
+GET  http://localhost:8080/api/logs                Ver logs de operaciones
+GET  http://localhost:8080/api/export              Descargar datos en JSON
+
+Ejemplo con curl:
+
+    curl http://localhost:8080/api/status
+    curl -X POST http://localhost:8080/api/scan
+    curl http://localhost:8080/api/devices
+
+═══════════════════════════════════════════════════════════════════════════════
+ ⚠️ POSIBLES PROBLEMAS Y SOLUCIONES
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ "Error: Permission denied"
+   ✅ Solución: Usar sudo
+      sudo python3 quantum_hijack_full.py
+
+❌ "ImportError: No module named 'flask'"
+   ✅ Solución: Instalar dependencias
+      sudo pip3 install -r requirements.txt
+
+❌ "Address already in use" (Puerto 8080 ocupado)
+   ✅ Solución 1: Terminar proceso en puerto
+      sudo lsof -i :8080
+      sudo kill -9 [PID]
+   ✅ Solución 2: Cambiar puerto en el código (línea ~600)
+      app.run(host='0.0.0.0', port=9090, debug=False)
+
+❌ "No wireless interface found"
+   ✅ Solución: Verificar interfaz
+      iwconfig
+      # Busca algo como "wlan0" en la salida
+
+❌ Dashboard no se carga en navegador
+   ✅ Solución: Verificar que Flask esté corriendo
+      # Debería ver "Running on http://0.0.0.0:8080"
+
+═══════════════════════════════════════════════════════════════════════════════
+ 📊 VERIFICACIÓN FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ quantum_hijack_full.py     - Rutas duplicadas ELIMINADAS
+✅ requirements.txt            - Dependencias listas
+✅ setup.sh                    - Script de instalación
+✅ templates/index.html        - Dashboard HTML
+✅ static/style.css            - Estilos CSS
+✅ README.md                   - Documentación actualizada
+
+ESTADO: ✅ 100% OPERATIVO
+
+═══════════════════════════════════════════════════════════════════════════════
+ 🎯 RESUMEN RÁPIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+PRIMERA VEZ:
+    sudo bash setup.sh
+    sudo python3 quantum_hijack_full.py
+    # Abre: http://localhost:8080
+
+SIGUIENTES VECES:
+    sudo python3 quantum_hijack_full.py
+    # Abre: http://localhost:8080
+
+¡LISTO!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Última actualización: 21 Enero 2026
+Versión: 2.0
+Estado: ✅ LISTO PARA PRODUCCIÓN
