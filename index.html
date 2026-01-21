@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QUANTUM-HIJACK v3 — Documentación</title>
+  <meta name="description" content="Documentación y guía rápida — uso ético en entornos autorizados" />
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+      background: #0b0e12;
+      color: #e5e7eb;
+    }
+    header {
+      padding: 16px 20px;
+      background: linear-gradient(90deg, #111827, #0b0e12);
+      border-bottom: 1px solid #1f2937;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+    header p {
+      margin: 6px 0 0;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    nav {
+      display: flex;
+      gap: 8px;
+      padding: 12px 20px;
+      border-bottom: 1px solid #1f2937;
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+      background: rgba(11,14,18,0.9);
+      z-index: 10;
+    }
+    nav button {
+      appearance: none;
+      border: 1px solid #374151;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .15s ease;
+    }
+    nav button:hover { border-color: #4b5563; background: #0f172a; }
+    nav button.active { border-color: #0ea5e9; background: #0c4a6e; color: #e0f2fe; }
+    main { padding: 20px; }
+    #content {
+      max-width: 980px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    #summary {
+      max-width: 980px;
+      margin: 0 auto 12px;
+      padding: 12px 16px;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      background: #0b1220;
+    }
+    .summary-title { font-size: 16px; margin: 0 0 10px; color: #e5e7eb; }
+    .section-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin: 8px 0; }
+    .section-name { color: #cbd5e1; font-weight: 600; }
+    .counts { font-size: 12px; color: #9ca3af; }
+    .progress {
+      position: relative; height: 10px; background: #101827; border: 1px solid #243042; border-radius: 999px; overflow: hidden;
+    }
+    .progress > .bar {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg,#0ea5e9,#22d3ee); border-right: 1px solid #0ea5e9;
+    }
+    .heading-progress {
+      margin-left: 8px; padding: 2px 8px; border-radius: 999px; border: 1px solid #334155; color: #a1a1aa; font-size: 12px;
+    }
+    #content h1, #content h2, #content h3 { color: #f3f4f6; }
+    #content code, #content pre {
+      background: #0f172a;
+      border: 1px solid #1f2a44;
+      border-radius: 8px;
+    }
+    #content pre { padding: 12px; overflow: auto; }
+    #content table { width: 100%; border-collapse: collapse; }
+    #content th, #content td { border: 1px solid #374151; padding: 8px; }
+    .disclaimer {
+      margin-top: 8px; padding: 8px 12px; font-size: 12px; color: #cbd5e1;
+      border: 1px dashed #334155; border-radius: 8px; background: #0b1220;
+    }
+    .toolbar {
+      display: flex; gap: 8px; align-items: center; margin: 12px 0 20px;
+    }
+    .toolbar small { color: #9ca3af; }
+    .pill {
+      padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #334155; color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>QUANTUM-HIJACK v3 — Documentación y Guías</h1>
+    <p class="disclaimer">Uso exclusivamente ético y en entornos autorizados. Este material es educativo. No fomenta ni avala actividades ilícitas.</p>
+    <div class="toolbar">
+      <span class="pill">Versión: v3.0</span>
+      <small>Selecciona una sección para ver su contenido renderizado.</small>
+    </div>
+  </header>
+  <nav>
+    <button data-target="readme" class="active">README v3</button>
+    <button data-target="quickstart">QuickStart v3</button>
+    <button data-target="checklist">Checklist del Evento</button>
+  </nav>
+  <main>
+    <div id="summary" aria-live="polite" hidden></div>
+    <div id="content" aria-live="polite"></div>
+  </main>
+
+  <!-- Renderizador Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    marked.use({
+      mangle: false,
+      headerIds: true
+    });
+
+    const sections = {
+      readme: document.getElementById('md-readme').textContent,
+      quickstart: document.getElementById('md-quickstart').textContent,
+      checklist: document.getElementById('md-checklist').textContent,
+    };
+
+    function renderSection(key) {
+      const content = sections[key] || '';
+      const html = marked.parse(content);
+      const container = document.getElementById('content');
+      container.innerHTML = html;
+      enhanceCheckboxes(key);
+      // Checklist progress summary (always visible when checklist tab)
+      const summary = document.getElementById('summary');
+      if (key === 'checklist') {
+        summary.hidden = false;
+        renderChecklistProgress();
+      } else {
+        summary.hidden = true;
+        summary.innerHTML = '';
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function enhanceCheckboxes(sectionKey) {
+      const container = document.getElementById('content');
+      const boxes = container.querySelectorAll('input[type="checkbox"]');
+      boxes.forEach((box, idx) => {
+        const id = `${sectionKey}::cb::${idx}`;
+        const saved = localStorage.getItem(id);
+        if (saved !== null) box.checked = saved === '1';
+        box.addEventListener('change', () => {
+          localStorage.setItem(id, box.checked ? '1' : '0');
+          if (sectionKey === 'checklist') renderChecklistProgress();
+        });
+      });
+      if (sectionKey === 'checklist') annotateSectionHeadings();
+    }
+
+    function findNearestSectionHeading(el) {
+      // Prefer h3 (sub-secciones); fallback a h2
+      let cur = el;
+      while (cur && cur !== document.getElementById('content')) {
+        cur = cur.previousElementSibling || cur.parentElement;
+        if (!cur) break;
+        if (cur.tagName === 'H3') return { level: 3, name: cur.textContent.trim() };
+        if (cur.tagName === 'H2') return { level: 2, name: cur.textContent.trim() };
+      }
+      return { level: 0, name: 'General' };
+    }
+
+    function computeChecklistProgress() {
+      const container = document.getElementById('content');
+      const boxes = Array.from(container.querySelectorAll('input[type="checkbox"]'));
+      const sections = new Map();
+      boxes.forEach(box => {
+        const ctx = findNearestSectionHeading(box.closest('li') || box.parentElement || box);
+        const key = ctx.name || 'General';
+        if (!sections.has(key)) sections.set(key, { total: 0, checked: 0 });
+        const agg = sections.get(key);
+        agg.total += 1;
+        if (box.checked) agg.checked += 1;
+      });
+      return sections;
+    }
+
+    function renderChecklistProgress() {
+      const sections = computeChecklistProgress();
+      const summary = document.getElementById('summary');
+      const items = [];
+      sections.forEach((agg, name) => {
+        const pct = agg.total ? Math.round((agg.checked / agg.total) * 100) : 0;
+        items.push(
+          `<div class="section-item">
+            <div>
+              <div class="section-name">${name}</div>
+              <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
+            </div>
+            <div class="counts">${agg.checked}/${agg.total} (${pct}%)</div>
+          </div>`
+        );
+      });
+      summary.innerHTML = `<h2 class="summary-title">Progreso por secciones</h2>${items.join('')}`;
+      annotateSectionHeadings(sections);
+    }
+
+    function annotateSectionHeadings(sectionsMap) {
+      const container = document.getElementById('content');
+      const headings = container.querySelectorAll('h3');
+      const sections = sectionsMap || computeChecklistProgress();
+      headings.forEach(h => {
+        const name = h.textContent.trim();
+        const agg = sections.get(name);
+        const pct = agg && agg.total ? Math.round((agg.checked / agg.total) * 100) : 0;
+        let badge = h.querySelector('.heading-progress');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'heading-progress';
+          h.appendChild(badge);
+        }
+        badge.textContent = agg ? `${agg.checked}/${agg.total} (${pct}%)` : `0/0 (0%)`;
+      });
+    }
+
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b === btn));
+        renderSection(btn.dataset.target);
+      });
+    });
+
+    // Render inicial
+    renderSection('readme');
+  </script>
+
+  <!-- Contenido Markdown embebido (no requiere fetch) -->
+  <script id="md-readme" type="text/markdown">
+# 🔥 QUANTUM-HIJACK v3.0 - WiFi Rogue + Infectar + Persistir
+
+**Herramienta de Hacking Ético Avanzada**
+
+Emmanuel - 2026
+
+---
+
+## 📋 ¿QUÉ HACE?
+
+```
+1. ✅ Modo Monitor AUTOMÁTICO (ON/OFF)
+2. ✅ WiFi ABIERTO (sin contraseña) - Auto-conectar
+3. ✅ DHCP automático (192.168.1.x)
+4. ✅ Interceptar credenciales (emails, bancos, etc)
+5. ✅ INFECTAR dispositivos (payload)
+6. ✅ PERSISTENCIA (reverse shell cron)
+7. ✅ Dashboard cyberpunk EN VIVO
+8. ✅ Auto-limpiar al salir (Ctrl+C)
+```
+
+---
+
+## ⚡ INSTALACIÓN RÁPIDA
+
+```bash
+# 1. Clonar/descargar proyecto
+cd ~/Desktop/QUANTUM-HIJACK-v3
+
+# 2. Instalar dependencias
+sudo bash setup_v3.sh
+
+# 3. Dar permisos
+chmod +x quantum_hijack_v3.py interceptor_v3.py
+
+# 4. EJECUTAR
+sudo python3 quantum_hijack_v3.py
+
+# 5. Abrir navegador
+http://localhost:8080
+```
+
+---
+
+## 🎮 USO EN DEMO (5 MINUTOS)
+
+### MIN 0:00 - Iniciar servidor
+```bash
+sudo python3 quantum_hijack_v3.py
+```
+
+Output:
+```
+╔═══════════════════════════════════════════════════════╗
+║  🔥 QUANTUM-HIJACK v3.0 - WiFi Rogue + Infectar     ║
+╚═══════════════════════════════════════════════════════╝
+
+📡 CONFIGURACIÓN
+ WiFi Interface: wlan0
+ Monitor Mode: wlan0mon
+ SSID: CafeGratis_FreeWiFi
+ Password: ABIERTO (sin contraseña)
+ Gateway: 192.168.1.1
+
+🌐 WEB DASHBOARD
+ → http://localhost:8080
+```
+
+### MIN 0:30 - Abrir dashboard
+Abre navegador: **http://localhost:8080**
+
+Dashboard aparece con todos los botones.
+
+### MIN 1:00 - INICIAR TODO
+Click en botón: **🔥 INICIAR TODO**
+
+Secuencia automática:
+1. ✅ Setup - Modo monitor activado
+2. ✅ Hostapd - WiFi "CafeGratis_FreeWiFi" en el aire
+3. ✅ Dnsmasq - DHCP asignando IPs
+4. ✅ Interceptor - Escuchando puertos 80,443,21,22,3306,5432
+
+### MIN 2:00 - Conectar teléfono
+- Abrir WiFi en teléfono
+- Buscar: **"CafeGratis_FreeWiFi"**
+- SIN CONTRASEÑA → Click conectar
+- Auto-conecta (CERO interacción víctima)
+
+### MIN 2:30 - Víctima navega
+- Abre navegador
+- Entra a: Gmail / Facebook / PKO / Instagram
+- Intenta hacer login
+
+### MIN 3:00 - INFECTAR
+Dashboard muestra:
+```
+📱 Clientes Conectados: 1
+🔥 Dispositivos INFECTADOS: 1
+  IP: 192.168.1.50
+  MAC: AA:BB:CC:DD:EE:FF
+  Type: Android
+  Status: 🔥 INFECTADO
+  Reverse Shell: 192.168.1.1:4444
+```
+
+### MIN 3:30 - Ver credenciales
+Dashboard actualiza LIVE:
+```
+🔓 Credenciales Capturadas: 3
+  
+[1] 14:35:20 | HTTPS | Gmail
+  user@gmail.com / password123
+
+[2] 14:35:45 | HTTP | Facebook
+  usuario / pass456
+
+[3] 14:36:10 | HTTPS | PKO
+  jan.kowalski@gmail.com / pkopwd789
+```
+
+### MIN 4:00 - Descargar
+- Click: **⬇️ Descargar TXT** (infected_devices.txt)
+- Click: **📦 Descargar TODO ZIP** (quantum_loot.zip)
+
+Archivos incluyen:
+- `infected_devices.txt` - Dispositivos comprometidos
+- `credentials.json` - Credenciales capturadas
+- `operation_logs.json` - Logs completos
+- `RESUMEN.txt` - Resumen ejecutivo
+
+### MIN 4:30 - DETENER
+```bash
+# En dashboard: Click ⛔ DETENER TODO
+```
+
+O en terminal:
+```bash
+Ctrl+C
+```
+
+**Automáticamente:**
+1. ✅ Detiene hostapd
+2. ✅ Detiene dnsmasq
+3. ✅ Detiene interceptor
+4. ✅ Desactiva modo monitor (wlan0mon → wlan0 managed)
+5. ✅ Restaura interfaz normal
+6. ✅ Reinicia NetworkManager
+
+---
+
+## 📁 ESTRUCTURA DE ARCHIVOS
+
+```
+quantum_hijack_v3/
+├── quantum_hijack_v3.py      # MAIN (600+ líneas)
+├── interceptor_v3.py          # Capturador de credenciales
+├── setup_v3.sh                # Instalación automática
+├── README.md                  # Este archivo
+├── payloads/                  # (creado auto)
+│   ├── android_payload.bin
+│   ├── windows_payload.exe
+│   └── ios_payload.bin
+├── logs/                      # (creado auto)
+│   ├── infected_devices.json
+│   ├── captured_credentials.json
+│   └── operation_logs.json
+└── capture/                   # (creado auto)
+```
+
+---
+
+## 🔧 CARACTERÍSTICAS PRINCIPALES
+
+### 1️⃣ **Modo Monitor AUTOMÁTICO**
+```
+Setup automático:
+- Detecta interfaz WiFi (wlan0, wlan1, etc)
+- Mata procesos conflictivos
+- Activa modo monitor (airmon-ng)
+- Configuración IP automática
+
+Al salir (Ctrl+C):
+- Desactiva modo monitor
+- Restaura interfaz a managed
+- Reinicia NetworkManager
+```
+
+### 2️⃣ **WiFi ABIERTO (Sin contraseña)**
+```
+SSID: CafeGratis_FreeWiFi
+Password: (VACÍO)
+Resultado: Auto-conectar sin interacción
+
+Víctima SOLO ve WiFi y conecta
+```
+
+### 3️⃣ **DHCP + DNS Spoof**
+```
+IP Gateway: 192.168.1.1
+Rango DHCP: 192.168.1.2-100
+DNS Spoof: TODO tráfico → 192.168.1.1
+Resultado: Máximo control de la red
+```
+
+### 4️⃣ **Interceptor de Credenciales**
+```
+Monitorea puertos:
+- 80 (HTTP) - Formularios web
+- 443 (HTTPS) - Secure connections
+- 21 (FTP) - File Transfer
+- 22 (SSH) - Remote access
+- 3306 (MySQL) - Databases
+- 5432 (PostgreSQL) - Databases
+- 27017 (MongoDB) - NoSQL
+
+Detecta:
+- Bancos: PKO, Santander, mBank, ING
+- Email: Gmail, Outlook, Yahoo
+- Redes: Facebook, Instagram, Twitter, LinkedIn
+- Otros: WhatsApp Web, Allegro
+```
+
+### 5️⃣ **INFECTAR Dispositivos**
+```
+Auto-detecta tipo:
+- Android
+- iPhone/iOS
+- Windows
+- Linux
+- Mac
+
+Inyecta payload vía DNS spoof:
+- google.com → payload.apk
+- facebook.com → payload.exe
+```
+
+### 6️⃣ **PERSISTENCIA**
+```
+Reverse shell permanente:
+- Cron job @reboot
+- Conexión automática 192.168.1.1:4444
+- Supervivencia después de reboot
+```
+
+### 7️⃣ **Dashboard Profesional**
+```
+EN VIVO (auto-actualiza cada 2 seg):
+- Estado módulos (on/off)
+- Clientes conectados
+- Dispositivos INFECTADOS
+- Credenciales capturadas
+- Logs operacionales
+- Botones de control
+- Descargas (TXT + ZIP)
+```
+
+---
+
+## 📊 API REST ENDPOINTS
+
+```
+GET  /api/status              → Estado actual del sistema
+GET  /api/clients             → Clientes conectados
+GET  /api/infected            → Dispositivos infectados
+GET  /api/credentials         → Credenciales capturadas
+GET  /api/logs                → Logs de operación
+
+POST /api/init/setup          → Activar modo monitor
+POST /api/init/hostapd        → Iniciar WiFi falso
+POST /api/init/dnsmasq        → Iniciar DHCP
+POST /api/init/interceptor    → Iniciar interceptor
+POST /api/init/all            → INICIAR TODO
+POST /api/stop/all            → DETENER TODO + Limpiar
+
+POST /api/infect              → Infectar dispositivo
+GET  /api/download/infected   → Descargar infectados.txt
+GET  /api/download/all        → Descargar quantum_loot.zip
+```
+
+---
+
+## ⚠️ REQUISITOS
+
+**Sistema:**
+- Kali Linux 2026 (o similar)
+- Permisos root (sudo)
+- Tarjeta WiFi con soporte modo monitor
+
+**Dependencias instaladas por setup.sh:**
+```
+hostapd          - Access point falso
+dnsmasq          - DHCP + DNS
+aircrack-ng      - Herramientas wireless
+wireless-tools   - Utilidades WiFi
+python3-scapy    - Manipulación paquetes
+flask            - Web framework
+```
+
+---
+
+## 🎯 CASOS DE USO
+
+✅ **Pentest autorizado** - Evaluar seguridad WiFi
+✅ **Educación** - Laboratorios de seguridad
+✅ **Demostración** - Mostrar vulnerabilidades
+✅ **Testing interno** - Redes controladas
+
+❌ **NO usar sin autorización**
+❌ **NO en redes públicas sin permiso**
+❌ **NO con intención maliciosa**
+
+---
+
+## 🔒 CONSIDERACIONES LEGALES
+
+⚠️ **ADVERTENCIA IMPORTANTE**
+
+Este software está diseñado ÚNICAMENTE para:
+✓ Testing de seguridad autorizado
+✓ Laboratorios educativos controlados
+✓ Redes propias o con permiso explícito
+
+**PROHIBIDO usar para:**
+✗ Acceder a redes sin autorización
+✗ Interceptar datos privados ilegalmente
+✗ Robar credenciales
+✗ Causar daño intencional
+
+El autor NO es responsable de mal uso.
+**Cumple con todas las leyes aplicables.**
+
+---
+
+## 🐛 TROUBLESHOOTING
+
+### "No se ve WiFi"
+```bash
+# Verificar interfaz
+iw dev
+
+# Aumentar potencia
+sudo iw wlan0 set txpower fixed 3000
+
+# Revisar hostapd
+sudo systemctl status hostapd
+```
+
+### "Puerto 8080 ocupado"
+```bash
+sudo lsof -i :8080
+sudo kill -9 <PID>
+```
+
+### "Modo monitor no funciona"
+```bash
+# Desactivar todas las conexiones
+sudo systemctl stop NetworkManager
+
+# Iniciar manualmente
+sudo airmon-ng start wlan0
+```
+
+### "Interceptor no captura"
+```bash
+# Verificar interfaz monitor
+iw dev wlan0mon info
+
+# Revisar privilegios
+sudo python3 interceptor_v3.py
+```
+
+---
+
+## 📞 SOPORTE
+
+Si tienes problemas:
+
+1. Revisa los logs en `/logs/`
+2. Verifica que ejecutas con `sudo`
+3. Comprueba dependencias: `apt update && sudo bash setup_v3.sh`
+4. Revisa el dashboard para errores EN VIVO
+
+---
+
+## 👨‍💻 AUTOR
+
+**Emmanuel** - Cybersecurity 2026
+Especialista en Hacking Ético
+
+---
+
+## 📝 CHANGELOG
+
+### v3.0 (2026-01-22)
+✨ **COMPLETAMENTE NUEVO**
+- ✅ Modo monitor AUTOMÁTICO ON/OFF
+- ✅ WiFi ABIERTO (auto-conectar)
+- ✅ INFECTAR dispositivos
+- ✅ PERSISTENCIA (reverse shell)
+- ✅ Dashboard profesional cyberpunk
+- ✅ Limpieza automática al salir
+- ✅ API REST completa
+
+### v2.0 (2026-01-21)
+- Captura básica de credenciales
+- WiFi con contraseña
+- Dashboard simple
+
+### v1.0 (2026-01-20)
+- Concepto inicial
+- Setup básico
+
+---
+
+## 🎓 LEARNING OUTCOMES
+
+Aprendes:
+- Conceptos de WiFi y seguridad inalámbrica
+- Modo monitor en interfaces wireless
+- DHCP y DNS spoofing
+- Packet sniffing con Scapy
+- Análisis de protocolos de red
+- Desarrollo de herramientas de pentesting
+- Flask + REST APIs
+- Automatización de hacking ético
+
+---
+
+**¡QUANTUM-HIJACK v3.0 - Hacking Ético Responsable!** 🔥
+
+Emmanuel - 2026
+  </script>
+
+  <script id="md-quickstart" type="text/markdown">
+# 🔥 QUANTUM-HIJACK v3.0 - QUICK START (COPIA-PEGA)
+
+## ⚡ 30 SEGUNDOS PARA EMPEZAR
+
+```bash
+# 1. POSICIONARSE EN CARPETA
+cd ~/Desktop/QUANTUM-HIJACK-v3
+
+# 2. INSTALAR (1 comando)
+sudo bash setup_v3.sh
+
+# 3. DAR PERMISOS
+chmod +x quantum_hijack_v3.py interceptor_v3.py
+
+# 4. EJECUTAR (1 comando)
+sudo python3 quantum_hijack_v3.py
+```
+
+**Espera output:**
+```
+╔════════════════════════════════════════════════════════╗
+║  🔥 QUANTUM-HIJACK v3.0                               ║
+║  🌐 WEB DASHBOARD → http://localhost:8080             ║
+╚════════════════════════════════════════════════════════╝
+```
+
+## 🌐 DASHBOARD
+
+Abre: **http://localhost:8080**
+
+Click: **🔥 INICIAR TODO**
+
+¡LISTO! WiFi en el aire, esperando víctimas.
+
+---
+
+## 📱 DEMO CON TELÉFONO
+
+1. Abre WiFi en teléfono
+2. Busca: **"CafeGratis_FreeWiFi"**
+3. CONECTA (sin contraseña)
+4. Abre Gmail / Facebook
+5. Intenta login
+
+**EN EL DASHBOARD:**
+```
+✅ Cliente conectado
+🔥 Infectado
+🔓 Credenciales capturadas LIVE
+```
+
+---
+
+## ⬇️ DESCARGAR
+
+Dashboard tiene 2 botones:
+
+**⬇️ Descargar TXT**
+```
+infected_devices.txt
+- IPs infectadas
+- MACs
+- Reverse shells
+```
+
+**📦 Descargar ZIP**
+```
+quantum_loot.zip contiene:
+- infected_devices.txt
+- credentials.json
+- operation_logs.json
+- RESUMEN.txt
+```
+
+---
+
+## 🛑 DETENER
+
+**Opción 1:** Click ⛔ en dashboard
+
+**Opción 2:** Terminal
+```bash
+Ctrl+C
+```
+
+**AUTO-LIMPIA:**
+```
+✅ Detiene todos servicios
+✅ Desactiva modo monitor
+✅ Restaura interfaz normal
+✅ Reinicia NetworkManager
+```
+
+---
+
+## 🎯 FLUJO COMPLETO (5 MIN DEMO)
+
+```
+MIN 0:00 → sudo python3 quantum_hijack_v3.py
+MIN 0:30 → http://localhost:8080
+MIN 1:00 → Click "🔥 INICIAR TODO"
+         → WiFi en el aire
+
+MIN 2:00 → Teléfono ve "CafeGratis_FreeWiFi"
+MIN 2:30 → Teléfono conecta (sin contraseña)
+MIN 3:00 → Dashboard: "1 Cliente conectado"
+
+MIN 3:30 → Víctima abre Gmail
+MIN 4:00 → Dashboard: "🔥 INFECTADO"
+         → "🔓 user@gmail.com:password123"
+
+MIN 4:30 → Click "⬇️ Descargar ZIP"
+         → quantum_loot.zip guardado
+
+MIN 5:00 → Ctrl+C → Auto-limpia
+```
+
+---
+
+## ⚙️ ARCHIVOS PRINCIPALES
+
+| Archivo | Qué hace |
+|---------|----------|
+| **quantum_hijack_v3.py** | MAIN (Flask + Control) |
+| **interceptor_v3.py** | Captura credenciales |
+| **setup_v3.sh** | Instala dependencias |
+| **README_v3.md** | Documentación completa |
+
+---
+
+## 🔧 SI ALGO FALLA
+
+### WiFi no aparece
+```bash
+sudo iw wlan0 set txpower fixed 3000
+sudo systemctl restart hostapd
+```
+
+### Puerto 8080 ocupado
+```bash
+sudo lsof -i :8080
+sudo kill -9 <PID>
+```
+
+### Permisos
+```bash
+Siempre: sudo python3 quantum_hijack_v3.py
+```
+
+---
+
+## ✨ CARACTERÍSTICAS
+
+- ✅ WiFi ABIERTO (auto-conectar)
+- ✅ Modo monitor auto ON/OFF
+- ✅ Captura credenciales LIVE
+- ✅ Infecta dispositivos
+- ✅ Persistencia (reverse shell)
+- ✅ Dashboard cyberpunk
+- ✅ Descarga automática
+- ✅ Limpieza automática
+
+---
+
+## ⚖️ LEGAL
+
+```
+✅ SOLO para testing AUTORIZADO
+✅ Laboratorios educativos
+✅ Redes propias
+
+❌ NO sin permiso
+❌ NO en redes públicas
+❌ NO para robar datos
+```
+
+---
+
+## 🎓 APRENDES
+
+- Hacking WiFi
+- Inyección de payloads
+- Captura de credenciales
+- Python + Flask
+- Scapy + Packet sniffing
+
+---
+
+**¡LISTO PARA TU EVENTO!** 🔥
+
+Emmanuel - 2026
+  </script>
+
+  <script id="md-checklist" type="text/markdown">
+# ✅ QUANTUM-HIJACK v3.0 - CHECKLIST PRE-EVENTO
+
+## 📋 ANTES DEL EVENTO (1 DÍA)
+
+### Sistema
+- [ ] Ejecutar en Kali Linux 2026+
+- [ ] Usuario root/sudo habilitado
+- [ ] Tarjeta WiFi con soporte modo monitor
+- [ ] Comprobar: `iw dev` (debe mostrar interfaz)
+
+### Instalación
+- [ ] `cd ~/Desktop/QUANTUM-HIJACK-v3`
+- [ ] `sudo bash setup_v3.sh` (sin errores)
+- [ ] `chmod +x quantum_hijack_v3.py interceptor_v3.py`
+
+### Archivos
+- [ ] quantum_hijack_v3.py (600+ líneas)
+- [ ] interceptor_v3.py (250+ líneas)
+- [ ] setup_v3.sh (instalador)
+- [ ] README_v3.md (docs)
+- [ ] QUICKSTART_v3.md (quick guide)
+
+### Dependencias
+- [ ] `python3 -c "import flask; print('✅ Flask')"` → OK
+- [ ] `python3 -c "import scapy; print('✅ Scapy')"` → OK
+- [ ] `which hostapd` → /usr/sbin/hostapd
+- [ ] `which dnsmasq` → /usr/sbin/dnsmasq
+- [ ] `which airmon-ng` → /usr/bin/airmon-ng
+
+---
+
+## 🎯 DÍA DEL EVENTO (Antes)
+
+### Verificación Rápida
+- [ ] Laptop conectada a corriente
+- [ ] WiFi en laptop APAGADO (Settings)
+- [ ] Modo avión OFF
+- [ ] Teléfono de prueba con WiFi (Android/iOS)
+- [ ] Puerto 8080 libre: `sudo lsof -i :8080`
+
+### Test de Ejecución
+```bash
+cd ~/Desktop/QUANTUM-HIJACK-v3
+sudo python3 quantum_hijack_v3.py
+```
+Esperar output:
+```
+╔════════════════════════════════════════════════════════╗
+║  🔥 QUANTUM-HIJACK v3.0                               ║
+║  🌐 WEB DASHBOARD → http://localhost:8080             ║
+╚════════════════════════════════════════════════════════╝
+```
+
+### Test de Dashboard
+- [ ] Abrir http://localhost:8080 en navegador
+- [ ] Dashboard carga
+- [ ] Todos los botones visibles
+- [ ] Terminal muestra logs EN VIVO
+
+### Test de Módulos
+- [ ] Click "Setup Monitor" → ✅ Log: "Modo monitor activado"
+- [ ] Click "Hostapd WiFi" → ✅ Log: "WiFi ACTIVO: CafeGratis_FreeWiFi"
+- [ ] Click "Dnsmasq DHCP" → ✅ Log: "DHCP ACTIVO"
+- [ ] Click "Interceptor" → ✅ Log: "Interceptor ACTIVO"
+
+### Test Completo
+- [ ] Click "🔥 INICIAR TODO"
+- [ ] Secuencia automática completa (20 segundos)
+- [ ] 4 módulos en verde (ACTIVOS)
+- [ ] Terminal muestra logs sin errores
+
+### Test de WiFi
+- [ ] `iw dev wlan0mon info` → Modo monitor confirmado
+- [ ] WiFi "CafeGratis_FreeWiFi" visible en otros dispositivos
+- [ ] Teléfono CONECTA sin contraseña
+
+### Test de Captura
+- [ ] Teléfono abre http://google.com
+- [ ] Dashboard actualiza en VIVO
+- [ ] Cliente aparece en "Clientes Conectados"
+
+### Test de Descarga
+- [ ] Click "📦 Descargar ZIP"
+- [ ] Se descarga quantum_loot.zip
+- [ ] Archivo tiene contenido
+
+### Cleanup
+```bash
+Ctrl+C en terminal
+```
+Esperar:
+```
+✅ Detiene todos servicios
+✅ Desactiva modo monitor
+✅ Restaura interfaz
+✅ Reinicia NetworkManager
+```
+
+- [ ] Laptop WiFi vuelve a funcionar normal
+- [ ] Interfaz restaurada a managed mode
+
+---
+
+## 🎬 DURANTE EL EVENTO
+
+### Antes de Presentar (5 min)
+- [ ] Laptop conectada a proyector
+- [ ] Terminal visible en pantalla grande
+- [ ] Navegador abierto pero sin tabs (limpio)
+- [ ] Teléfono de demo cargado (batería 80%+)
+
+### Presentación (Escenario Ideal)
+```
+[SLIDE 1] "QUANTUM-HIJACK v3.0"
+[DEMOSTRACIÓN EN VIVO]
+
+MIN 0:00 → Ejecutar: sudo python3 quantum_hijack_v3.py
+MIN 0:30 → Abrir: http://localhost:8080
+MIN 1:00 → Click: "🔥 INICIAR TODO"
+         → Punto 1: Modo monitor visible en terminal
+         → Punto 2: WiFi "CafeGratis_FreeWiFi" aparece
+
+MIN 2:00 → Mostrar teléfono: "Buscar WiFi"
+         → Punto 3: WiFi aparece en lista
+         → Punto 4: "Sin contraseña - conectar"
+
+MIN 2:30 → Teléfono conectado
+         → Dashboard: "1 Cliente conectado" ✅
+
+MIN 3:00 → Teléfono: "Abrir Gmail"
+         → Intento de login
+
+MIN 3:30 → Dashboard LIVE: 🔥 INFECTADO
+         → "user@gmail.com : password123" ✅
+
+MIN 4:00 → Click: "⬇️ Descargar ZIP"
+         → "Se descargó quantum_loot.zip"
+
+MIN 4:30 → Mostrar archivo descargado
+         → "Credenciales guardadas"
+
+MIN 5:00 → Ctrl+C
+         → Auto-limpia
+         → "Modo monitor desactivado"
+         → "Interfaz restaurada"
+```
+
+### Contingencias
+
+**Si WiFi no aparece:**
+- [ ] `sudo systemctl restart hostapd`
+- [ ] `sudo iw wlan0 set txpower fixed 3000`
+- [ ] Esperar 10 segundos
+
+**Si cliente no conecta:**
+- [ ] Activar WiFi en teléfono
+- [ ] Olvidar red ("Forget")
+- [ ] Re-conectar
+- [ ] Si falla: reiniciar WiFi en teléfono
+
+**Si credenciales no aparecen:**
+- [ ] Interceptor puede estar sin privilegios
+- [ ] Terminal: `Ctrl+C` → `sudo python3 quantum_hijack_v3.py`
+- [ ] Re-intentar con teléfono en modo incognito
+
+**Si dashboard se cuelga:**
+- [ ] Refresh navegador (F5)
+- [ ] O abrir pestaña nueva: http://localhost:8080
+
+---
+
+## 📊 TIEMPO ESTIMADO
+
+```
+Setup:           2 min (hasta WiFi en el aire)
+Conexión:        1 min (teléfono conecta)
+Captura:         1 min (credenciales aparecen)
+Descarga:        30 seg
+Cleanup:         30 seg
+────────────────────────
+TOTAL:           5 minutos (perfecto)
+```
+
+---
+
+## 🎙️ SCRIPT DE PRESENTACIÓN (COPY-PASTE)
+
+```
+"Hola a todos. Les presento QUANTUM-HIJACK v3.0.
+
+Una herramienta educativa que demuestra cómo:
+1. Crear un WiFi falso
+2. Capturar credenciales EN VIVO
+3. Infectar dispositivos
+4. Mantener persistencia
+
+¿Listos? Comencemos.
+
+[Ejecutar script]
+
+1. Ven el modo monitor activándose
+2. El WiFi 'CafeGratis_FreeWiFi' aparece
+3. Conectamos un teléfono
+4. Abrimos Gmail y intentamos login
+5. ¡INSTANTÁNEAMENTE! Las credenciales aparecen en el dashboard
+6. Todo guardado en un ZIP descargable
+
+¿Creen que sus usuarios estarían seguros contra esto?
+Exacto. Necesitan educación en seguridad.
+
+Presión: Ctrl+C
+[Sistema auto-limpia automáticamente]
+
+Gracias."
+```
+
+---
+
+## 📸 FOTOS/VIDEOS
+
+- [ ] Captura de pantalla del dashboard con datos
+- [ ] Video corto (1 min) del flujo completo
+- [ ] Foto de la descarga del ZIP
+- [ ] Antes/después de conectar teléfono
+
+---
+
+## ✨ FINAL
+
+- [ ] Evento exitoso
+- [ ] Audiencia impactada
+- [ ] Punto: "Seguridad WiFi es crítica"
+- [ ] Preguntas respondidas
+- [ ] Gracias dados
+- [ ] Sistema limpio después
+
+---
+
+## 🎯 OBJETIVO LOGRADO
+
+✅ Demo impactante en 5 minutos
+✅ Muestra vulnerabilidades reales
+✅ Educativo pero aterrador
+✅ Audiencia aprende importancia de seguridad
+✅ Tu evento: **LEGENDARIO** 🔥
+
+---
+
+**¡ESTÁS LISTO EMMANUEL!**
+
+Go get them! 🚀
+
+Emmanuel - 2026
+  </script>
+</body>
+</html>
