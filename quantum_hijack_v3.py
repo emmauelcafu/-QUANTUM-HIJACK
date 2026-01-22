@@ -43,6 +43,18 @@ processes = {
     'dashboard': None
 }
 
+
+def capture_process_failure(proc, name):
+    """Log stderr/stdout when a child process fails to start."""
+    try:
+        out, err = proc.communicate(timeout=2)
+    except Exception:
+        out, err = "", ""
+    if out:
+        log_operation(f"[{name}] stdout: {out.strip()[:500]}", "ERROR")
+    if err:
+        log_operation(f"[{name}] stderr: {err.strip()[:500]}", "ERROR")
+
 state = {
     'setup_done': False,
     'hostapd_running': False,
@@ -232,6 +244,7 @@ wmm_enabled=1
             return True
         else:
             log_operation("Hostapd falló al iniciar", "ERROR")
+            capture_process_failure(processes['hostapd'], 'hostapd')
             return False
             
     except Exception as e:
@@ -279,6 +292,7 @@ log-dhcp
             return True
         else:
             log_operation("Dnsmasq falló", "ERROR")
+            capture_process_failure(processes['dnsmasq'], 'dnsmasq')
             return False
             
     except Exception as e:
@@ -300,7 +314,7 @@ def init_interceptor():
     try:
         log_operation("Iniciando interceptor.py...", "STEP")
         processes['interceptor'] = subprocess.Popen(
-            ['sudo', 'python3', 'interceptor_v3.py'],
+            ['sudo', 'python3', 'interceptor_v3.py', state['monitor_interface']],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -314,6 +328,7 @@ def init_interceptor():
             return True
         else:
             log_operation("Interceptor falló", "ERROR")
+            capture_process_failure(processes['interceptor'], 'interceptor')
             return False
             
     except Exception as e:
