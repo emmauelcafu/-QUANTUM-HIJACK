@@ -164,8 +164,7 @@ def main():
             iface=CAPTURE_IFACE,
             prn=pkt_callback,
             filter='tcp port 21 or tcp port 22 or tcp port 80 or tcp port 443 or tcp port 3306 or tcp port 5432 or tcp port 27017',
-            store=False,
-            verbose=0
+            store=False
         )
     except KeyboardInterrupt:
         print("\n[!] Interceptor detenido")
