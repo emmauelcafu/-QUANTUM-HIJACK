@@ -18,6 +18,7 @@ import socket
 import random
 import zipfile
 import atexit
+import shutil
 from io import BytesIO
 from datetime import datetime
 from pathlib import Path
@@ -112,6 +113,29 @@ def detect_wifi_interface():
         pass
     return 'wlan0'
 
+
+def interface_exists(iface: str) -> bool:
+    return Path(f"/sys/class/net/{iface}").exists()
+
+
+def pick_monitor_interface() -> str:
+    """Elegir interfaz en modo monitor si existe, fallback a interfaz WiFi."""
+    try:
+        result = subprocess.run(['iw', 'dev'], capture_output=True, text=True)
+        current = None
+        monitor_ifaces = []
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith('Interface'):
+                current = line.split()[-1]
+            if 'type monitor' in line and current:
+                monitor_ifaces.append(current)
+        if monitor_ifaces:
+            return monitor_ifaces[0]
+    except Exception as e:
+        log_operation(f"No se pudo enumerar interfaces monitor: {e}", "WARNING")
+    return state.get('monitor_interface') or state.get('wifi_interface')
+
 def kill_process_by_name(name):
     """Matar proceso por nombre"""
     try:
@@ -154,6 +178,14 @@ def setup_monitor_mode():
         log_operation(f"Iniciando modo monitor...", "STEP")
         os.system(f"sudo airmon-ng start {iface}")
         time.sleep(2)
+        
+        # Re-evaluar interfaz monitor creada
+        mon_iface = pick_monitor_interface()
+        if not interface_exists(mon_iface):
+            # Fallback: usa la interfaz original si no se creó wlan0mon
+            mon_iface = iface
+            log_operation(f"⚠️ No se encontró interfaz monitor separada; usando {iface} como monitor", "WARNING")
+        state['monitor_interface'] = mon_iface
         
         log_operation(f"Configurando {state['monitor_interface']}...", "STEP")
         os.system(f"sudo ifconfig {state['monitor_interface']} up")
@@ -209,6 +241,10 @@ def init_hostapd():
     """Iniciar WiFi rogue abierto"""
     if not state['setup_done']:
         log_operation("Setup no completado", "ERROR")
+        return False
+
+    if shutil.which('hostapd') is None:
+        log_operation("hostapd no está instalado. Ejecuta: sudo apt install hostapd", "ERROR")
         return False
     
     log_operation("[INICIANDO] Hostapd - WiFi Abierto", "PROCESS")
